@@ -1,0 +1,291 @@
+import sys
+from os import linesep
+
+import click
+
+from oceanum.cli.common.renderer import Renderer, RenderField
+from oceanum.cli.common.utils import format_dt
+from oceanum.cli.auth import login_required
+from oceanum.cli.common.symbols import spin, chk, err, wrn, info, key
+
+from .client import PRAXClient
+from .main import list_group, describe, delete, prax, update, allow
+from . import models
+from .utils import (
+    echoerr, merge_secrets,
+    project_status_color as psc,
+    stage_status_color as ssc,
+)
+
+name_arguement = click.argument('name', type=str)
+name_option = click.option('--name', help='Set the resource name', required=False, type=str)
+project_org_option = click.option('--org', help='Set the project organization', required=False, type=str)
+project_user_option = click.option('--user', help='Set the project owner email', required=False, type=str)
+
+@list_group.command(name='projects', help='List PRAX Projects')
+@click.pass_context
+@click.option('--search', help='Search by project name or description', default=None, type=str)
+@click.option('--org', help='filter by Organization name', default=None, type=str)
+@click.option('--user', help='filter by User email', default=None, type=str)
+@click.option('--status', help='filter by Project status', default=None, type=str)
+@login_required
+def list_projects(ctx: click.Context, search: str|None, org: str|None, user: str|None, status: str|None):
+    click.echo(f' {spin} Listing projects...')
+    client = PRAXClient(ctx)
+    filters = {
+        'search': search,
+        'org': org,
+        'user': user,
+        'status': status
+    }
+    projects = client.list_projects(**{
+        k: v for k, v in filters.items() if v is not None
+    })
+
+    fields = [
+        RenderField(label='Name', path='$.name'),
+        RenderField(label='Org.', path='$.org'),
+        RenderField(label='Rev.', path='$.last_revision.number'),
+        RenderField(label='Status', path='$.status', mod=psc),
+        RenderField(label='Stages', path='$.stages.*', mod=ssc),
+    ]
+        
+    if not projects:
+        click.echo(f' {wrn} No projects found!')
+        sys.exit(1)
+    elif isinstance(projects, models.ErrorResponse):
+        click.echo(f" {err} Could not list projects!")
+        echoerr(projects)
+        sys.exit(1)
+    else:
+        click.echo(Renderer(data=projects, fields=fields).render(output_format='table'))
+
+@prax.command(name='validate', help='Validate PRAX Project Specfile')
+@click.argument('specfile', type=click.Path(exists=True))
+@click.pass_context
+@login_required
+def validate_project(ctx: click.Context, specfile: click.Path):
+    click.echo(f' {spin} Validating PRAX Project Spec file...')
+    client = PRAXClient(ctx)
+    response = client.validate(str(specfile))
+    if isinstance(response, models.ErrorResponse):
+        click.echo(f" {err} Validation failed!")
+        echoerr(response)
+        sys.exit(1)
+    else:
+        click.echo(f' {chk} OK! Project Spec file is valid!')
+
+@prax.command(name='deploy', help='Deploy a PRAX Project Specfile')
+@name_option
+@project_org_option
+@project_user_option
+@click.option('--wait', help='Wait for project to be deployed', default=True)
+# Add option to allow passing secrets to the specfile, this will be used to replace placeholders
+# can be multiple, e.g. --secret secret-1:key1=value1,key2=value2 --secret secret-2:key2=value2
+@click.option('-s','--secrets',help='Replace existing secret data values, i.e secret-name:key1=value1,key2=value2', multiple=True)
+@click.argument('specfile', type=click.Path(exists=True, dir_okay=False, resolve_path=True))
+@click.pass_context
+@login_required
+def deploy_project(
+    ctx: click.Context, 
+    specfile: click.Path, 
+    name: str|None, 
+    org: str|None, 
+    user: str|None,
+    wait: bool,
+    secrets: list[str]
+):
+
+    client = PRAXClient(ctx)
+    project_spec = client.load_spec(str(specfile))
+    if isinstance(project_spec, models.ErrorResponse):
+        click.echo(f" {err} Failed to load project spec file!")
+        echoerr(project_spec)
+        sys.exit(1)
+
+    if name is not None:
+        project_spec.name = name
+    if org is not None:
+        project_spec.user_ref = models.UserRef(org)
+    if user is not None:
+        project_spec.member_ref = user
+
+    if secrets:
+        click.echo(f' {key} Parsing and merging secrets...')
+        project_spec = merge_secrets(project_spec, secrets)
+
+    user_org = getattr(project_spec.user_ref, 'root', None) or ctx.obj.token.active_org
+    user_email = project_spec.member_ref or ctx.obj.token.email
+
+    get_params = {
+        'project_name': project_spec.name,
+        'org': user_org,
+        'user': user_email
+    }
+    project = client.get_project(**get_params)
+    click.echo()
+
+    if isinstance(project, models.ProjectSchema):
+        click.echo(f" {spin} Updating existing PRAX Project:")
+    else:
+        if 'not found' in str(project.detail).lower():
+            click.echo(f" {spin} Deploying NEW PRAX Project:")
+        else:
+            click.echo(f" {err} Could not deploy project!")
+            echoerr(project)
+            sys.exit(1)
+
+    click.echo()
+    click.echo(f'  Project Name: {project_spec.name}')
+    click.echo(f"  Organization: {getattr(user_org, 'root', user_org)}")
+    click.echo(f'  Owner:        {user_email}')
+    click.echo()
+    click.echo('Safe to Ctrl+C at any time...')
+    click.echo()
+    project = client.deploy_project(project_spec)
+    if isinstance(project, models.ErrorResponse):
+        click.echo(f" {err} Deployment failed!")
+        click.echo(f" {wrn} {project.detail}")
+        sys.exit(1)
+    project = client.get_project(**get_params)
+    if isinstance(project, models.ProjectSchema) and project.last_revision is not None:
+        click.echo(f" {chk} Revision #{project.last_revision.number} created successfully!")
+        if wait:
+            click.echo(f' {spin} Waiting for project to be deployed...')
+            client.wait_project_deployment(**get_params)
+    else:
+        click.echo(f" {err} Could not retrieve project details!")
+        click.echo(f" {wrn} Please check the project status in the PRAX console!")
+
+@delete.command(name='project')
+@click.argument('project_name', type=str)
+@project_org_option
+@project_user_option
+@click.pass_context
+@login_required
+def delete_project(ctx: click.Context, project_name: str, org: str|None, user:str|None):
+    client = PRAXClient(ctx)
+    project = client.get_project(project_name, org=org, user=user)
+    if isinstance(project, models.ProjectSchema):
+        click.confirm(
+            f"Deleting project:{linesep}"\
+            f"{linesep}"\
+            f"Project Name: {project_name}{linesep}"\
+            f"Org: {project.org}{linesep}"\
+            f"Owner: {project.owner}{linesep}"\
+            f"{linesep}"\
+            "This will attempt to remove all deployed resources for this project! Are you sure?",
+            abort=True
+        )
+        response = client.delete_project(project_name, org=org, user=user)
+        if isinstance(response, models.ErrorResponse):
+            click.echo(f" {err} Failed to delete existing project!")
+            echoerr(response)
+            sys.exit(1)
+        else:
+            click.echo(f' {chk} Project {project_name} deleted successfuly!')
+            click.echo(f' {info} Deployed resources will be removed shortly...')
+    else:
+        click.echo(f" {err} Failed to delete project '{project_name}'!")
+        echoerr(project)
+        sys.exit(1)
+
+@describe.command(name='project', help='Describe a PRAX Project')
+@click.option('--show-spec', help='Show project spec', default=False, type=bool, is_flag=True)
+@click.option('--only-spec', help='Show only project spec', default=False, type=bool, is_flag=True)
+@click.argument('project_name', type=str)
+@project_org_option
+@project_user_option
+@click.pass_context
+@login_required
+def describe_project(ctx: click.Context, project_name: str, org: str, user:str, show_spec: bool=False, only_spec: bool=False):
+    client = PRAXClient(ctx)
+    project = client.get_project(project_name, org=org, user=user)
+    last_revision = project.last_revision if isinstance(project, models.ProjectSchema) else None
+    project_spec = last_revision.spec if last_revision is not None else None
+    click.echo()
+
+    if project_spec is not None:
+        render_fields = [
+            RenderField(label='Name', path='$.name'),
+            RenderField(label='Description', path='$.description'),
+            RenderField(label='Organisation', path='$.org'),
+            RenderField(label='User', path='$.owner'),
+            RenderField(label='Status', path='$.status', mod=psc),
+            RenderField(label='Created', path='$.created_at', mod=format_dt),
+            RenderField(label='Last Revision', path='$.last_revision.number'),
+            RenderField(label='Stages', path='$.stages'),
+
+        ]
+        # 
+        click.echo(Renderer(data=[project], fields=render_fields).render(output_format='yaml'))
+    else:
+        click.echo(f"Project '{project_name}' does not have any revisions!")
+
+    if isinstance(project, models.ErrorResponse):
+        click.echo(f" {err} Could not describe project!")
+        echoerr(project)
+        sys.exit(1)
+
+@update.command(name='project', help='Update Project parameters')
+@click.argument('project_name', type=str)
+@project_org_option
+@project_user_option
+@click.option('--description', help='Update project description', default=None, type=str)
+@click.option('--active', help='Update project status', default=None, type=bool)
+@click.pass_context
+def update_project(ctx: click.Context, project_name: str, description: str, org: str, user:str, active: bool):
+    client = PRAXClient(ctx)
+    project = client.get_project(project_name, org=org, user=user)
+    ops = []
+    if isinstance(project, models.ProjectSchema):
+        project.description = description
+        if description:
+            ops.append(models.JSONPatchOpSchema(
+                op=models.Op('replace'),
+                path='/description',
+                value=description
+            ))
+        if active is not None:
+            ops.append(models.JSONPatchOpSchema(
+                op=models.Op('replace'),
+                path='/active',
+                value=active
+            ))
+        project = client.patch_project(project.name, ops)
+        if isinstance(project, models.ProjectSchema):
+            click.echo(f"Project '{project_name}' description updated!")
+
+    if isinstance(project, models.ErrorResponse):
+        click.echo(f" {err} Failed to update project description!")
+        echoerr(project)
+        sys.exit(1)
+        
+
+@allow.command(name='project')
+@click.argument('project_name', type=str, required=True)
+@click.argument('subject', type=str, required=True)
+@project_org_option
+@project_user_option    
+@click.option('-v','--view', help='Allow to view the project', default=None, type=bool, is_flag=True)
+@click.option('-c','--change', help='Allow to change the project, implies --view', default=None, type=bool, is_flag=True)
+@click.option('-d','--delete', help='Allow to delete the project, implies --view and --change', default=None, type=bool, is_flag=True)
+@click.pass_context
+def allow_project(ctx: click.Context, project_name: str, org: str, user:str, view: bool, change: bool, delete: bool, subject: str):
+    client = PRAXClient(ctx)
+    response = client.get_project(project_name, org=org, user=user)
+    if isinstance(response, models.ProjectSchema):
+        permission = models.PermissionsSchema(
+            view=bool(view or change or delete),
+            change=bool(change or delete),
+            delete=bool(delete),
+            subject=subject,
+        )
+        response = client.allow_project(response.name, permission)
+        if isinstance(response, models.ConfirmationResponse):
+            click.echo(f"{chk} Permissions for project '{project_name}' set successfully!")
+            click.echo(f"{info} {response.detail}")
+    if isinstance(response, models.ErrorResponse):
+        click.echo(f" {err} Failed to grant permission to project!")
+        echoerr(response)
+        sys.exit(1)
