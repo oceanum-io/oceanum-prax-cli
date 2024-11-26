@@ -205,20 +205,114 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
     project_spec = last_revision.spec if last_revision is not None else None
     click.echo()
 
-    if project_spec is not None:
+    def render_revision(revision: models.SpecRevisionSchema):
+        revision_fields = [
+            RenderField(label='Revision', path='$.number'),
+            RenderField(label='Author', path='$.author'),
+            RenderField(label='Status', path='$.status'),
+            RenderField(label='Created At', path='$.created_at', mod=format_dt),
+        ]
+
+        click.echo(Renderer(
+            data=[revision], 
+            fields=revision_fields, 
+            indent=2
+        ).render(output_format='table', tablefmt='plain'))
+        # click.echo(' '*2+'Spec:')
+        # click.echo(Renderer(
+        #     data=[revision.spec], 
+        #     fields=[], 
+        #     indent=4
+        # ).render(output_format='yaml'))
+
+    def render_stage_resources(resources: models.StageResourcesSchema):    
+
+        def render_resources(
+            resources: list[models.BuildSchema]|list[models.PipelineSchema]|list[models.RouteSchema]|list[models.TaskSchema],
+            extra_fields: list[RenderField],
+            indent: int = 6
+        ):
+            resource_type = resources[0].__class__.__name__.removesuffix('Schema').title()+'s'
+            click.echo(' '*max(0,indent-2)+f'{resource_type}:')
+            for resource in resources:
+                common_fields = [
+                    RenderField(label='Name', path='$.name'),
+                    RenderField(label='Description', path='$.description'),
+                    RenderField(label='Object Ref.', path='$.object_ref'),
+                    RenderField(label='Updated At', path='$.updated_at', mod=format_dt),
+                    
+                ]
+                click.echo(Renderer(
+                    data=[resource],
+                    fields=common_fields+extra_fields,
+                    indent=indent
+                ).render(output_format='table', tablefmt='plain'))
+                if len(resources) > 1:
+                    click.echo(' '*indent+'-'*40)
+            click.echo()
+        
+        pipeline_fields = [
+            RenderField(label='Last Run Status', 
+                        path='$.last_run', 
+                        mod=lambda x: x['status'] if x is not None else 'N/A'
+            ),
+        ]
+
+        if resources.builds:
+            build_fields = [
+                RenderField(label='Source Ref', path='$.source_ref'),
+                RenderField(label='Commit', path='$.commit_sha'),
+                RenderField(label='Image digest', path='$.image_digest'),            
+            ]+pipeline_fields
+            render_resources(resources.builds, build_fields, indent=6)
+
+        if resources.routes:
+            route_fields = [
+                RenderField(label='Route Status', path='$.status'),
+            ]
+            render_resources(resources.routes, route_fields, indent=6)
+
+        if resources.tasks:
+            render_resources(resources.tasks, pipeline_fields, indent=6)
+                
+        if resources.pipelines:
+            render_resources(resources.pipelines, pipeline_fields, indent=6)
+
+    def render_stage(stage: models.StageSchema):
+        stage_fields = [
+            RenderField(label='Project Name', path='$.name'),
+            RenderField(label='Status', path='$.status'),
+            RenderField(label='Updated At', path='$.updated_at', sep=linesep, mod=format_dt),
+            RenderField(label='Message', path='$.error_message', sep=linesep),
+        ]
+        click.echo(Renderer(
+            data=[stage], 
+            fields=stage_fields, 
+            indent=2
+        ).render(output_format='table', tablefmt='plain'))
+        click.echo(' '*2+'Deployed Resources:')
+        render_stage_resources(stage.resources)
+
+    if isinstance(project, models.ProjectSchema) and project_spec is not None:
         render_fields = [
             RenderField(label='Name', path='$.name'),
             RenderField(label='Description', path='$.description'),
             RenderField(label='Organisation', path='$.org'),
-            RenderField(label='User', path='$.owner'),
-            RenderField(label='Status', path='$.status', mod=psc),
+            RenderField(label='Owner', path='$.owner'),
             RenderField(label='Created', path='$.created_at', mod=format_dt),
-            RenderField(label='Last Revision', path='$.last_revision.number'),
-            RenderField(label='Stages', path='$.stages'),
-
         ]
         # 
-        click.echo(Renderer(data=[project], fields=render_fields).render(output_format='yaml'))
+        click.echo('-'*40)
+        click.echo(Renderer(
+            data=[project], 
+            fields=render_fields
+        ).render(output_format='table', tablefmt='plain'))
+        if project.last_revision is not None:
+            click.echo(f"Latest Revision:")
+            render_revision(project.last_revision)
+        click.echo('Stages:')
+        for stage in project.stages:
+            render_stage(stage)
     else:
         click.echo(f"Project '{project_name}' does not have any revisions!")
 
