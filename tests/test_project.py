@@ -18,7 +18,20 @@ runner = CliRunner()
 good_specfile = Path(__file__).parent/'data/dpm-project.yaml'
 with good_specfile.open() as f:
     project_schema = models.ProjectSchema(
-        stages=[],
+        stages=[
+            models.StageSchema(
+                updated_at=datetime.now().replace(tzinfo=timezone.utc),
+                name='test-stage',
+                status='healty',
+                resources=models.StageResourcesSchema(
+                    name='test-stage',
+                    pipelines=[],
+                    tasks=[],
+                    builds=[],
+                    routes=[],
+                )
+            )
+        ],
         last_revision=models.SpecRevisionSchema(
             spec=models.ProjectSpec(**yaml.safe_load(f)),
             created_at=datetime.now().replace(tzinfo=timezone.utc),
@@ -31,7 +44,7 @@ with good_specfile.open() as f:
         owner='test-user',
         created_at=datetime.now().replace(tzinfo=timezone.utc),
         description='test-description',
-        status='healthy',
+        status='created',
     )
 
 
@@ -250,6 +263,7 @@ class TestDescribeProject(TestCase):
                 models.StageSchema(
                     updated_at=datetime.now().replace(tzinfo=timezone.utc),
                     name='test-stage',
+                    status='healthy',
                     resources=models.StageResourcesSchema(
                         name='test-stage',
                         pipelines=[],
@@ -300,7 +314,6 @@ class TestDescribeProject(TestCase):
             owner='test-user',
             created_at=datetime.now().replace(tzinfo=timezone.utc),
             description='test-description',
-            status='healthy',
         )
 
     def test_describe_help(self):

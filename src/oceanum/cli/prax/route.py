@@ -94,7 +94,7 @@ def describe_route(ctx: click.Context, route_name: str):
         ]
             
         click.echo(
-            Renderer(data=[route], fields=fields).render(output_format='plain')
+            Renderer(data=[route], fields=fields).render(output_format='table', tablefmt='plain')
         )
     else:
         click.echo(f"{wrn} Error fetching route:")
