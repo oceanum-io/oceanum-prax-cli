@@ -19,15 +19,17 @@ from .utils import (
 
 name_arguement = click.argument('name', type=str)
 name_option = click.option('--name', help='Set the resource name', required=False, type=str)
-project_org_option = click.option('--org', help='Set the project organization', required=False, type=str)
-project_user_option = click.option('--user', help='Set the project owner email', required=False, type=str)
+project_name_option = click.option('--project', help='Set Project Name', required=False, type=str)
+project_org_option = click.option('--org', help='Set Project Organization', required=False, type=str)
+project_user_option = click.option('--user', help='Set Project Owner email', required=False, type=str)
+project_stage_option = click.option('--stage', help='Set Project Stage', required=False, type=str)
 
 @list_group.command(name='projects', help='List PRAX Projects')
 @click.pass_context
 @click.option('--search', help='Search by project name or description', default=None, type=str)
-@click.option('--org', help='filter by Organization name', default=None, type=str)
-@click.option('--user', help='filter by User email', default=None, type=str)
 @click.option('--status', help='filter by Project status', default=None, type=str)
+@project_org_option
+@project_user_option
 @login_required
 def list_projects(ctx: click.Context, search: str|None, org: str|None, user: str|None, status: str|None):
     click.echo(f' {spin} Listing projects...')
@@ -236,7 +238,7 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
             click.echo(' '*max(0,indent-2)+f'{resource_type}:')
             for resource in resources:
                 common_fields = [
-                    RenderField(label='Name', path='$.name'),
+                    RenderField(label='Project Name', path='$.name'),
                     RenderField(label='Description', path='$.description'),
                     RenderField(label='Object Ref.', path='$.object_ref'),
                     RenderField(label='Updated At', path='$.updated_at', mod=format_dt),
@@ -280,7 +282,7 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
 
     def render_stage(stage: models.StageSchema):
         stage_fields = [
-            RenderField(label='Project Name', path='$.name'),
+            RenderField(label='Stage Name', path='$.name'),
             RenderField(label='Status', path='$.status'),
             RenderField(label='Updated At', path='$.updated_at', sep=linesep, mod=format_dt),
             RenderField(label='Message', path='$.error_message', sep=linesep),
@@ -295,7 +297,7 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
 
     if isinstance(project, models.ProjectSchema) and project_spec is not None:
         render_fields = [
-            RenderField(label='Name', path='$.name'),
+            RenderField(label='Resource Name', path='$.name'),
             RenderField(label='Description', path='$.description'),
             RenderField(label='Organisation', path='$.org'),
             RenderField(label='Owner', path='$.owner'),

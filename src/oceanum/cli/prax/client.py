@@ -192,15 +192,14 @@ class PRAXClient:
                         for stage in project.stages:
                             for build in stage.resources.builds:
                                 all_builds.append(build)
-                                last_run = build.runs[-1] if build.runs else None
-                                if last_run:
-                                    if last_run.status in ['updating', 'pending']:
+                                if build.last_run:
+                                    if build.last_run.status in ['updating', 'pending']:
                                         updating_builds.append(build)
-                                    elif last_run.status in ['error']:
+                                    elif build.last_run.status in ['error']:
                                         click.echo(f" {err} Build '{build.name}' operation failed!")
                                         errors.append(build)
                                         ready_builds.append(build)
-                                    elif last_run.status in ['success']:
+                                    elif build.last_run.status in ['success']:
                                         click.echo(f" {chk} Build '{build.name}' operation succeeded!")
                                         ready_builds.append(build)
 
