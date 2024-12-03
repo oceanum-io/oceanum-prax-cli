@@ -54,7 +54,7 @@ class Email(RootModel[str]):
 class Token(RootModel[str]):
     root: str = Field(
         ...,
-        description="The user's DPM API authentication token",
+        description="The user's PRAX API authentication token",
         max_length=64,
         title='Token',
     )
@@ -72,7 +72,7 @@ class UserSchema(BaseModel):
     email: Optional[Email] = Field(default=None, title='Email Address')
     token: Optional[Token] = Field(
         default=None,
-        description="The user's DPM API authentication token",
+        description="The user's PRAX API authentication token",
         title='Token',
     )
 

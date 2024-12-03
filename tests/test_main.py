@@ -10,7 +10,7 @@ from oceanum.cli.common.models import ContextObject, TokenResponse, Auth0Config
 from click.testing import CliRunner
 from click.globals import get_current_context
 
-class TestDPMCommands(TestCase):
+class TestPRAXCommands(TestCase):
 
     def setUp(self) -> None:
         self.runner = CliRunner()
