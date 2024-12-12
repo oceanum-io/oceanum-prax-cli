@@ -35,31 +35,21 @@
 - [ ] update user-secret [secret_name] --key1=value --key2=value
 - [ ] delete user-secret [secret_name] 
 
-#### Service (Route) Commands 
-
-- [ ] list routes
-- [ ] describe route [route_name]
-
 #### Build Commands
 
-- [ ] list builds
-- [ ] describe build [build_name]
+- [x] list builds
+- [x] describe build [build_name]
 - [ ] submit build 
-
-#### Stages Commands
-
-- [ ] list stages
-- [ ] describe stage [stage_name]
 
 #### Pipeline Commands
 
-- [ ] list pipelines
-- [ ] describe pipeline [pipeline_name]
+- [x] list pipelines
+- [x] describe pipeline [pipeline_name]
 - [ ] submit pipeline
 
 #### Tasks Commands
 
-- [ ] list tasks
-- [ ] describe task [task_name]
+- [x] list tasks
+- [x] describe task [task_name]
 - [ ] submit task
 

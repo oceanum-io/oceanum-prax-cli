@@ -29,6 +29,22 @@ def create():
 def submit():
     pass
 
+@prax.group(name='terminate',help='Terminate Tasks, Pipelines and Builds runs.')
+def terminate():
+    pass
+
+@prax.group(name='stop',help='Stop Tasks, Pipelines and Builds runs.')
+def stop():
+    pass
+
+@prax.group(name='resume',help='Resume Tasks, Pipelines and Builds runs.')
+def resume():
+    pass
+
+@prax.group(name='retry',help='Retry Tasks, Pipelines and Builds runs.')
+def retry():
+    pass
+
 @prax.group(name='allow',help='Manage resources permissions')
 def allow():
     pass

@@ -54,7 +54,7 @@ class Email(RootModel[str]):
 class Token(RootModel[str]):
     root: str = Field(
         ...,
-        description="The user's PRAX API authentication token",
+        description="The user's DPM API authentication token",
         max_length=64,
         title='Token',
     )
@@ -72,7 +72,7 @@ class UserSchema(BaseModel):
     email: Optional[Email] = Field(default=None, title='Email Address')
     token: Optional[Token] = Field(
         default=None,
-        description="The user's PRAX API authentication token",
+        description="The user's DPM API authentication token",
         title='Token',
     )
 
@@ -945,6 +945,15 @@ class Description(RootModel[str]):
     )
 
 
+class Tier(Enum):
+    """
+    The Service's Route Tier, default to `frontend`. Options are `frontend` or `backend`
+    """
+
+    backend = 'backend'
+    frontend = 'frontend'
+
+
 class ServiceRouteSpec(BaseModel):
     display_name: Optional[DisplayName] = Field(
         default=None,
@@ -960,8 +969,13 @@ class ServiceRouteSpec(BaseModel):
     publish_app: bool = Field(
         default=False,
         alias='publishApp',
-        description="Publish the Service's Route in Oceanum.io Dashboard as an App",
+        description="Publish the Service's Route in Oceanum.io Dashboard. Default to `false`",
         title='Publish',
+    )
+    tier: Optional[Tier] = Field(
+        default='frontend',
+        description="The Service's Route Tier, default to `frontend`. Options are `frontend` or `backend`",
+        title='Tier',
     )
     custom_domains: Optional[list[CustomDomainSpec]] = Field(
         default=None,
@@ -1227,13 +1241,8 @@ class Timeout2(Timeout):
     pass
 
 
-class ObjectRef(RootModel[str]):
-    root: str = Field(..., max_length=255, title='Object Ref')
-
-
 class RouteSchema(BaseModel):
     org: str = Field(..., title='Org')
-    username: str = Field(..., title='Username')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
     thumbnail: Optional[str] = Field(default=None, title='Thumbnail')
@@ -1241,7 +1250,6 @@ class RouteSchema(BaseModel):
     custom_domains: list[str] = Field(default=[], title='Custom Domains')
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
-    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1250,6 +1258,9 @@ class RouteSchema(BaseModel):
         description='The name used as title in Oceanum.io Apps site',
         max_length=255,
         title='Display Name',
+    )
+    tier: str = Field(
+        default='frontend', description="The Route's tier", max_length=20, title='Tier'
     )
     publish_app: bool = Field(
         default=False,
@@ -1271,12 +1282,10 @@ class RouteSchema(BaseModel):
 
 class StagedRunSchema(BaseModel):
     org: str = Field(..., title='Org')
-    username: str = Field(..., title='Username')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
-    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1289,7 +1298,6 @@ class StagedRunSchema(BaseModel):
 
 class TaskSchema(BaseModel):
     org: str = Field(..., title='Org')
-    username: str = Field(..., title='Username')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
     last_run: Optional[StagedRunSchema] = Field(
@@ -1297,7 +1305,6 @@ class TaskSchema(BaseModel):
     )
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
-    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1450,7 +1457,6 @@ class StagedResourceFilterSchema(BaseModel):
 
 class TaskRunsSchema(BaseModel):
     org: str = Field(..., title='Org')
-    username: str = Field(..., title='Username')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
     last_run: Optional[StagedRunSchema] = Field(
@@ -1458,16 +1464,18 @@ class TaskRunsSchema(BaseModel):
     )
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
-    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
     runs: list[StagedRunSchema] = Field(..., title='Runs')
 
 
+class Schema(BaseModel):
+    pass
+
+
 class PipelineRunsSchema(BaseModel):
     org: str = Field(..., title='Org')
-    username: str = Field(..., title='Username')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
     schedule: Optional[str] = Field(
@@ -1483,7 +1491,6 @@ class PipelineRunsSchema(BaseModel):
     )
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
-    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1492,7 +1499,6 @@ class PipelineRunsSchema(BaseModel):
 
 class BuildRunsSchema(BaseModel):
     org: str = Field(..., title='Org')
-    username: str = Field(..., title='Username')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
     source_ref: Optional[str] = Field(
@@ -1515,7 +1521,6 @@ class BuildRunsSchema(BaseModel):
     )
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
-    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1863,7 +1868,6 @@ class Volume(BaseModel):
 
 class BuildSchema(BaseModel):
     org: str = Field(..., title='Org')
-    username: str = Field(..., title='Username')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
     source_ref: Optional[str] = Field(
@@ -1886,7 +1890,6 @@ class BuildSchema(BaseModel):
     )
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
-    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1894,7 +1897,6 @@ class BuildSchema(BaseModel):
 
 class PipelineSchema(BaseModel):
     org: str = Field(..., title='Org')
-    username: str = Field(..., title='Username')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
     schedule: Optional[str] = Field(
@@ -1910,7 +1912,6 @@ class PipelineSchema(BaseModel):
     )
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
-    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -2503,6 +2504,7 @@ class ServiceSpec(BaseModel):
                 'displayName': None,
                 'description': None,
                 'publishApp': False,
+                'tier': 'frontend',
                 'customDomains': [],
                 'openAccess': False,
             }

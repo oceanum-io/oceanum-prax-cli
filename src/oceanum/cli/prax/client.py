@@ -265,6 +265,35 @@ class PRAXClient:
             except Exception as e:
                 return models.ErrorResponse(detail=str(e))
     
+    def _run_action(self, 
+            action: Literal['submit', 'terminate', 'retry'],
+            endpoint: Literal['task', 'pipeline', 'build','task-runs','pipeline-runs','build-runs'],
+            run_name: str,
+        **params) -> models.StagedRunSchema | models.ErrorResponse:
+        action_methods = {
+            'terminate': self._put,
+            'retry': self._put,
+            'submit': self._post
+        }
+        confirm_status = {
+            'submit': 'Pending',
+            'terminate': 'Failed',
+            'retry': ['Pending', 'Running', 'Failed', 'Error']
+        }
+        response, errs = action_methods[action](
+            f'{endpoint}/{run_name}/{action}', 
+            json=params or None, 
+            params=params or None
+        )
+        if errs:
+            return errs
+        else:
+            run = models.StagedRunSchema(**response.json())
+            if run.status in confirm_status[action]:
+                return run
+            else:
+                return models.ErrorResponse(detail=f"Failed to {action} run '{run_name}'!")
+
     def wait_project_deployment(self, **params) -> bool:
         start = time.time()
         committed = self._wait_project_commit(**params)
@@ -348,6 +377,25 @@ class PRAXClient:
         response, errs = self._get(f'tasks/{task_id}', params=filters or None)
         return errs if errs else models.TaskSchema(**response.json())
     
+    def submit_task(self, task_name: str, parameters: dict|None, **filters) -> models.TaskSchema | models.ErrorResponse:
+        response, errs = self._post(
+            f'tasks/{task_name}/submit', 
+            json={'parameters':parameters} if parameters else None, 
+            params=filters or None
+        )
+        return errs if errs else models.TaskSchema(**response.json())
+    
+    def get_task_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
+        response, errs = self._get(f'task-runs/{run_name}', params=filters or None)
+        return errs if errs else models.StagedRunSchema(**response.json())
+    
+    def terminate_task_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
+        response, errs = self._put(f'task-runs/{run_name}/terminate', params=filters or None)
+        return errs if errs else models.StagedRunSchema(**response.json())
+    
+    def retry_task_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
+        response, errs = self._put(f'task-runs/{run_name}/retry', params=filters or None)
+        return errs if errs else models.StagedRunSchema(**response.json())
 
     def list_pipelines(self, **filters) -> list[models.PipelineSchema] | models.ErrorResponse:
         response, errs = self._get('pipelines', params=filters or None)
@@ -356,21 +404,57 @@ class PRAXClient:
         else:
             return errs
         
-    def get_pipeline(self, pipeline_id: str, **filters) -> models.PipelineSchema | models.ErrorResponse:
-        response, errs = self._get(f'pipelines/{pipeline_id}', params=filters or None)
+    def get_pipeline(self, pipeline_name: str, **filters) -> models.PipelineSchema | models.ErrorResponse:
+        response, errs = self._get(f'pipelines/{pipeline_name}', params=filters or None)
         return errs if errs else models.PipelineSchema(**response.json())
     
+    def submit_pipeline(self, pipeline_name: str, parameters: dict|None=None, **filters) -> models.PipelineSchema | models.ErrorResponse:
+        response, errs = self._post(f'pipelines/{pipeline_name}/submit', json=parameters, params=filters or None)
+        return errs if errs else models.PipelineSchema(**response.json())
+    
+    def get_pipeline_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
+        response, errs = self._get(f'pipeline-runs/{run_name}', params=filters or None)
+        return errs if errs else models.StagedRunSchema(**response.json())
+    
+    def terminate_pipeline_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
+        response, errs = self._put(f'pipeline-runs/{run_name}/terminate', params=filters or None)
+        return errs if errs else models.StagedRunSchema(**response.json())
+    
+    def stop_pipeline_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
+        response, errs = self._put(f'pipeline-runs/{run_name}/stop', params=filters or None)
+        return errs if errs else models.StagedRunSchema(**response.json())
+    
+    def resume_pipeline_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
+        response, errs = self._put(f'pipeline-runs/{run_name}/resume', params=filters or None)
+        return errs if errs else models.StagedRunSchema(**response.json())
+    
+    def retry_pipeline_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
+        response, errs = self._put(f'pipeline-runs/{run_name}/retry', params=filters or None)
+        return errs if errs else models.StagedRunSchema(**response.json())
+
     def list_builds(self, **filters) -> list[models.BuildSchema] | models.ErrorResponse:
         response, errs = self._get('builds', params=filters or None)
-        if not errs:
-            return [models.BuildSchema(**build) for build in response.json()]
-        else:
-            return errs
+        return errs if errs else [models.BuildSchema(**build) for build in response.json()]
     
-    def get_build(self, build_id: str, **filters) -> models.BuildSchema | models.ErrorResponse:
-        response, errs = self._get(f'builds/{build_id}', params=filters or None)
+    def get_build(self, build_name: str, **filters) -> models.BuildSchema | models.ErrorResponse:
+        response, errs = self._get(f'builds/{build_name}', params=filters or None)
         return errs if errs else models.BuildSchema(**response.json())
     
+    def submit_build(self, build_name: str, parameters: dict|None=None,  **filters) -> models.BuildSchema | models.ErrorResponse:
+        response, errs = self._post(f'builds/{build_name}/submit', json=parameters, params=filters or None)
+        return errs if errs else models.BuildSchema(**response.json())
+    
+    def get_build_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
+        response, errs = self._get(f'build-runs/{run_name}', params=filters or None)
+        return errs if errs else models.StagedRunSchema(**response.json())
+    
+    def terminate_build_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
+        response, errs = self._put(f'build-runs/{run_name}/terminate', params=filters or None)
+        return errs if errs else models.StagedRunSchema(**response.json())
+    
+    def retry_build_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
+        response, errs = self._put(f'build-runs/{run_name}/retry', params=filters or None)
+        return errs if errs else models.StagedRunSchema(**response.json())
     
     def list_routes(self, **filters) -> list[models.RouteSchema] | models.ErrorResponse:
         response, errs = self._get('routes', params=filters or None)

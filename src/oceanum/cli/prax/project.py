@@ -17,7 +17,7 @@ from .utils import (
     stage_status_color as ssc,
 )
 
-name_arguement = click.argument('name', type=str)
+name_argument = click.argument('name', type=str)
 name_option = click.option('--name', help='Set the resource name', required=False, type=str)
 project_name_option = click.option('--project', help='Set Project Name', required=False, type=str)
 project_org_option = click.option('--org', help='Set Project Organization', required=False, type=str)
@@ -240,7 +240,7 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
                 common_fields = [
                     RenderField(label='Project Name', path='$.name'),
                     RenderField(label='Description', path='$.description'),
-                    RenderField(label='Object Ref.', path='$.object_ref'),
+                    #RenderField(label='Object Ref.', path='$.object_ref'),
                     RenderField(label='Updated At', path='$.updated_at', mod=format_dt),
                     
                 ]
