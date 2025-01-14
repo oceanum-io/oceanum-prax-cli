@@ -37,5 +37,5 @@ jobs:
         continue-on-error: true
       - name: Run unit-tests
         run: |
-          pytest --cov oceanum-prax tests/ -s -v
+          pytest --cov oceanum.cli.prax tests/ -s -v
       

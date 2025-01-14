@@ -1,6 +1,6 @@
 # patch the function user_data_dir from the platformdirs module to return a temporary directory
 # This is a pytest conftest.py file
-
+import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -14,6 +14,7 @@ email_patcher = patch.object(TokenResponse, 'email', return_value='test@test.com
 
 print('Tests are starting... Hello from conftest.py!')
 def pytest_sessionstart(session):
+    os.environ['OCEANUM_DOMAIN'] = 'oceanum.test'
     dir_patcher.start()
     TokenResponse(
         access_token='123',
@@ -27,6 +28,7 @@ def pytest_sessionstart(session):
     
 
 def pytest_sessionfinish(session):
+    del os.environ['OCEANUM_DOMAIN']
     dir_patcher.stop()
     active_org_patcher.stop()
     email_patcher.stop()
