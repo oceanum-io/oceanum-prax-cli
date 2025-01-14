@@ -15,7 +15,7 @@ jobs:
         with:
           repository: oceanum-io/oceanum-python
           ref: prax-cli
-          path: oceanum-python
+          path: ../oceanum-python
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -28,14 +28,14 @@ jobs:
           ls -la ../
       - name: Install package and dependencies
         run: |
-          pip install ./oceanum-python
+          pip install ../oceanum-python
           pip install .[test]
       - name: Lint code with Ruff
         run: |
           pip install ruff
-          ruff check --output-format=github --target-version=py310 --exclude=tests
+          ruff check --output-format=github --target-version=py310 --exclude=tests --exclude=oceanum-python
         continue-on-error: true
       - name: Run unit-tests
         run: |
-          pytest --cov oceanum-prax
+          pytest --cov oceanum-prax tests/
       
