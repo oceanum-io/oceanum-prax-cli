@@ -23,7 +23,7 @@ jobs:
       # You can test your matrix by printing the current Python version
       - name: check files
         run: |
-          $(pwd)
+          pwd
           ls -la
           ls -la ../
       - name: Install package and dependencies
