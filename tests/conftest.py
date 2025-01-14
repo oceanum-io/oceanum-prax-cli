@@ -6,13 +6,13 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from oceanum.cli.common.models import TokenResponse
 import pytest
-
+import oceanum.cli.prax
 tmpdir = tempfile.TemporaryDirectory()
 dir_patcher = patch('platformdirs.user_data_dir', return_value=tmpdir.name)
 active_org_patcher = patch.object(TokenResponse, 'active_org', return_value='test-org')
 email_patcher = patch.object(TokenResponse, 'email', return_value='test@test.com')
 
-
+print('Tests are starting... Hello from conftest.py!')
 def pytest_sessionstart(session):
     dir_patcher.start()
     TokenResponse(
