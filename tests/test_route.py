@@ -15,7 +15,6 @@ runner = CliRunner()
 route_schema = models.RouteSchema(
     name='test-route',
     org='test-org',
-    username='test-user',
     display_name='test-route',
     created_at=datetime.now(tz=timezone.utc),
     updated_at=datetime.now(tz=timezone.utc),

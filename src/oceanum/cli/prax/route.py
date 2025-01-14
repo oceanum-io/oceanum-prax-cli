@@ -27,14 +27,16 @@ def update_route():
 @click.option('--project', help='Project name', default=None, type=str)
 @click.option('--stage', help='Stage name', default=None, type=str)
 @click.option('--open-access', help='Show only open-access routes or private routes with False', default=None, type=bool, is_flag=True)
-@click.option('--tier', help="Select only 'frontend' or 'backend' routes", default=None, type=str, is_flag=True)
+@click.option('--tier', help="Select only 'frontend' or 'backend' routes", default=None, type=click.Choice(['backend','frontend']))
 @output_format_option
 @login_required
 def list_routes(ctx: click.Context, output: str, open_access: bool, **filters):
-    if open_access == True:
-        filters.update({'open_access': True})
-    elif open_access == False:
-        filters.update({'open_access': False})
+    if open_access:
+        filters.update({'open': True})
+    elif open_access is None:
+        pass
+    else:
+        filters.update({'open': False})
 
     client = PRAXClient(ctx)
     fields = [

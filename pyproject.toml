@@ -44,6 +44,9 @@ test = [
   "pytest",
   "pytest-cov"
 ]
+modelgen = [
+  "datamodel-code-generator[http]"
+]
 
 [project.urls]
 "Homepage" = "https://oceanum.io/"

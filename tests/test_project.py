@@ -272,9 +272,7 @@ class TestDescribeProject(TestCase):
                             models.BuildSchema(
                                 org='test-org',
                                 project='test-project',
-                                username='test-user',
                                 name='test-build',
-                                object_ref=models.ObjectRef('test-workflow'),
                                 stage='test-stage',
                                 created_at=datetime.now().replace(tzinfo=timezone.utc),
                                 updated_at=datetime.now().replace(tzinfo=timezone.utc),
@@ -284,7 +282,6 @@ class TestDescribeProject(TestCase):
                             models.RouteSchema(
                                 name='test-route',
                                 org='test-org',
-                                username='test-user',
                                 display_name='test-route',
                                 created_at=datetime.now().replace(tzinfo=timezone.utc),
                                 updated_at=datetime.now().replace(tzinfo=timezone.utc),

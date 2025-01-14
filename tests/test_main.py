@@ -17,9 +17,6 @@ class TestPRAXCommands(TestCase):
         self.specfile = Path(__file__).parent / 'data/dpm-project.yaml'
         return super().setUp()
 
-    
-    
-
     def test_describe_help(self):
         result = self.runner.invoke(prax, ['describe', '--help'])
         assert result.exit_code == 0
@@ -29,12 +26,12 @@ class TestPRAXCommands(TestCase):
         route = models.RouteSchema(
             name='test-route',
             org='test-org',
-            username='test-user',
             display_name='test-route',
             created_at=datetime.now().replace(tzinfo=timezone.utc),
             updated_at=datetime.now().replace(tzinfo=timezone.utc),
             project='test-project',
             stage='test-stage',
+            tier='frontend',
             status='active',
             url='http://test-route'
         )
@@ -55,21 +52,23 @@ class TestPRAXCommands(TestCase):
     
     def test_list_routes_apps(self):
         with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
-            result = self.runner.invoke(main, ['prax','list','routes','--apps'])
+            result = self.runner.invoke(main, ['prax','list','routes','--tier','frontend'])
             assert result.exit_code == 0
-            mock_list.assert_called_once_with(publish_app=True)
+            mock_list.assert_called_once_with(tier='frontend')
     
     def test_list_routes_services(self):
         with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
-            result = self.runner.invoke(main, ['prax','list','routes','--services'])
+            result = self.runner.invoke(main, ['prax','list','routes','--tier','backend'])
+            print(result.output)
             assert result.exit_code == 0
-            mock_list.assert_called_once_with(publish_app=False)
+            
+            mock_list.assert_called_once_with(tier='backend')
 
     def test_list_routes_open(self):
         with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
-            result = self.runner.invoke(main, ['prax','list','routes','--open'])
+            result = self.runner.invoke(main, ['prax','list','routes','--open-access'])
             assert result.exit_code == 0
-            mock_list.assert_called_once_with(open_access=True)
+            mock_list.assert_called_once_with(open=True)
 
     def test_list_no_routes(self):
         with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
