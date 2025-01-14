@@ -38,7 +38,7 @@ jobs:
 
   pypi-publish-test:
     runs-on: ubuntu-latest
-    if: github.event_name == 'tag' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs:
       - release-build
       - run-tests
