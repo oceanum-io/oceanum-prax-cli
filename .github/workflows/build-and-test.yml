@@ -15,6 +15,7 @@ jobs:
         with:
           repository: oceanum-io/oceanum-python
           ref: prax-cli
+          path: oceanum-python
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -23,7 +24,7 @@ jobs:
       
       - name: Install package and dependencies
         run: |
-          pip install ./oceanum-python
+          pip install ../oceanum-python
           pip install .[test]
       - name: Lint code with Ruff
         run: |
