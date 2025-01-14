@@ -2,10 +2,9 @@
 import os
 import yaml
 import time
-from enum import Enum
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
-from typing import Literal, Optional, Type
+from typing import Literal, Optional
 
 import click
 import humanize
@@ -255,12 +254,12 @@ class PRAXClient:
     def _handle_errors(self, response: requests.Response) -> models.ErrorResponse|None:
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.HTTPError:
             try:
                 return models.ErrorResponse(**response.json())
             except requests.exceptions.JSONDecodeError:
                 return models.ErrorResponse(detail=response.text)
-            except ValidationError as e:
+            except ValidationError:
                 return models.ErrorResponse(detail=response.json())
             except Exception as e:
                 return models.ErrorResponse(detail=str(e))
@@ -312,7 +311,7 @@ class PRAXClient:
             with Path(specfile).open() as f:
                 spec_dict = yaml.safe_load(f)
             return models.ProjectSpec(**spec_dict)
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             return models.ErrorResponse(detail=f"Specfile not found: {specfile}")
         except ValidationError as e:
             return models.ErrorResponse(detail=[

@@ -3,8 +3,8 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "oceanum-prax-cli"
-description = "Command-line for Oceanum.io PRAX platform"
+name = "oceanum-prax"
+description = "Command-line utility for Oceanum.io PRAX platform"
 readme = "README.rst"
 license = { file = "LICENSE" }
 keywords = ["oceanum", "datamesh", "oceanum.io","prax","ci/cd"]
@@ -47,9 +47,9 @@ test = [
 
 [project.urls]
 "Homepage" = "https://oceanum.io/"
-"Source" = "https://github.com/oceanum-io/oceanum-python"
+"Source" = "https://github.com/oceanum-io/oceanum-run-cli"
 "Documentation" = "https://oceanum-python.readthedocs.io/en/latest/"
-"Tracker" = "https://github.com/oceanum-io/oceanum-python/issues"
+"Tracker" = "https://github.com/oceanum-io/oceanum-run-cli/issues"
 
 [tool.setuptools.dynamic]
 version = {attr = "oceanum.cli.prax.__version__"}

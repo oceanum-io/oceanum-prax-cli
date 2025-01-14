@@ -310,7 +310,7 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
             fields=render_fields
         ).render(output_format='table', tablefmt='plain'))
         if project.last_revision is not None:
-            click.echo(f"Latest Revision:")
+            click.echo("Latest Revision:")
             render_revision(project.last_revision)
         click.echo('Stages:')
         for stage in project.stages:

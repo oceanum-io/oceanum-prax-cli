@@ -4,11 +4,11 @@ import click
 
 from oceanum.cli.common.renderer import Renderer, output_format_option, RenderField
 from oceanum.cli.auth import login_required
-from oceanum.cli.common.symbols import wrn, chk, err, spin
+from oceanum.cli.common.symbols import chk, err, spin
 from oceanum.cli.common.utils import format_dt
 
 from . import models
-from .main import list_group, describe, submit, terminate, stop, resume, retry
+from .main import list_group, describe, submit, terminate, retry
 from .client import PRAXClient
 from .project import (
     project_org_option, 
@@ -17,7 +17,7 @@ from .project import (
     project_name_option,
     name_argument
 )
-from .utils import format_route_status as _frs, echoerr
+from .utils import echoerr
 
 def parse_parameters(parameters: list[str]|None) -> dict|None:
     params = {}
@@ -143,21 +143,21 @@ def describe_task(ctx: click.Context, name: str, **filters):
             fields=task_fields
         ).render(output_format='table', tablefmt='plain'))
         if task.last_run:
-            click.echo(f"Last Run:")
+            click.echo("Last Run:")
             click.echo(Renderer(
                 data=[task.last_run], 
                 fields=run_fields, 
                 indent=2
             ).render(output_format='table', tablefmt='plain'))
             if task.last_run.arguments:
-                click.echo(f"    Arguments:")
+                click.echo("    Arguments:")
                 click.echo(Renderer(
                     data=[task.last_run.arguments], 
                     fields=[], 
                     indent=4
                 ).render(output_format='yaml'))
             if task.last_run.details:
-                click.echo(f"  Run Details:")
+                click.echo("  Run Details:")
                 click.echo(Renderer(
                     data=[task.last_run.details], 
                     fields=[], 
@@ -315,21 +315,21 @@ def describe_build(ctx: click.Context, name: str, **filters):
             fields=build_fields
         ).render(output_format='table', tablefmt='plain'))
         if build.last_run:
-            click.echo(f"Last Run:")
+            click.echo("Last Run:")
             click.echo(Renderer(
                 data=[build.last_run], 
                 fields=run_fields, 
                 indent=2
             ).render(output_format='table', tablefmt='plain'))
             if build.last_run.arguments:
-                click.echo(f"    Arguments:")
+                click.echo("    Arguments:")
                 click.echo(Renderer(
                     data=[build.last_run.arguments], 
                     fields=[], 
                     indent=4
                 ).render(output_format='yaml'))
             if build.last_run.details:
-                click.echo(f"  Run Details:")
+                click.echo("  Run Details:")
                 click.echo(Renderer(
                     data=[build.last_run.details], 
                     fields=[], 
@@ -455,21 +455,21 @@ def describe_pipeline(ctx: click.Context, name: str, **filters):
         #         fields=[], indent=2
         #     ).render(output_format='yaml'))
         if pipeline.last_run:
-            click.echo(f"Last Run:")
+            click.echo("Last Run:")
             click.echo(Renderer(
                 data=[pipeline.last_run], 
                 fields=run_fields, 
                 indent=2
             ).render(output_format='table', tablefmt='plain'))
             if pipeline.last_run.arguments:
-                click.echo(f"    Arguments:")
+                click.echo("    Arguments:")
                 click.echo(Renderer(
                     data=[pipeline.last_run.arguments], 
                     fields=[], 
                     indent=4
                 ).render(output_format='yaml'))
             if pipeline.last_run.details:
-                click.echo(f"  Run Details:")
+                click.echo("  Run Details:")
                 click.echo(Renderer(
                     data=[pipeline.last_run.details], 
                     fields=[], 
