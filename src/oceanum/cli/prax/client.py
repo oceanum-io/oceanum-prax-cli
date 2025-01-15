@@ -424,7 +424,6 @@ class PRAXClient:
         response, errs = self._post(f'builds/{build_name}/submit', 
                                     json={'parameters': parameters}, 
                                     params=filters or None)
-        import pdb; pdb.set_trace()
         return errs if errs else models.BuildSchema(**response.json())
     
     def get_build_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
