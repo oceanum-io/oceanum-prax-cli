@@ -39,17 +39,23 @@
 
 - [x] list builds
 - [x] describe build [build_name]
-- [ ] submit build 
+- [x] submit build 
+- [x] terminate build [build_name]
+- [x] retry build [build_name]
 
 #### Pipeline Commands
 
 - [x] list pipelines
 - [x] describe pipeline [pipeline_name]
-- [ ] submit pipeline
+- [x] submit pipeline
+- [x] terminate pipeline [pipeline_name]
+- [x] retry pipeline [pipeline_name]
 
 #### Tasks Commands
 
 - [x] list tasks
 - [x] describe task [task_name]
-- [ ] submit task
+- [x] submit task
+- [x] terminate task [task_name]
+- [x] retry task [task_name]
 

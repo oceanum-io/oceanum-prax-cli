@@ -24,12 +24,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      # You can test your matrix by printing the current Python version
-      - name: check files
-        run: |
-          pwd
-          ls -la
-          ls -la ../
       - name: Install package and dependencies
         run: |
           pip install libs/oceanum-python

@@ -172,48 +172,29 @@ class PRAXClient:
     def _wait_builds_to_finish(self, **params):
         messaged = False
         project = self.get_project(**params)
-        if isinstance(project, models.ProjectSchema):
-            last_revision = project.last_revision if project else None
-            project_spec = last_revision.spec if last_revision else None
-            resources = project_spec.resources if project_spec else None
-            spec_builds = resources.builds if resources else None
-            if project_spec is not None and resources and spec_builds:                
-                click.echo(f' {spin} {spin} Revision expects one or more images to be built, this can take several minutes...')
-                time.sleep(self._lag*6)
-                while True:
-                    updating_builds = []
-                    ready_builds = []
-                    all_builds = []
-                    errors = []
-                    project = self.get_project(**params)
-                    if isinstance(project, models.ProjectSchema):
-                        project_name = project.name
-                        for stage in project.stages:
-                            for build in stage.resources.builds:
-                                all_builds.append(build)
-                                if build.last_run:
-                                    if build.last_run.status in ['updating', 'pending']:
-                                        updating_builds.append(build)
-                                    elif build.last_run.status in ['error']:
-                                        click.echo(f" {err} Build '{build.name}' operation failed!")
-                                        errors.append(build)
-                                        ready_builds.append(build)
-                                    elif build.last_run.status in ['success']:
-                                        click.echo(f" {chk} Build '{build.name}' operation succeeded!")
-                                        ready_builds.append(build)
-
-                    if errors:
-                        click.echo(f" {wrn} Project '{project_name}' failed to build images! Exiting...")
-                        return False
-                    elif updating_builds and not messaged:
-                        click.echo('Waiting for image-builds to finish, this can take several minutes...')
-                        messaged = True
-                        continue
-                    if len(ready_builds) == len(all_builds):
-                        click.echo(f' {chk} All builds are finished!')
-                        break
+        if isinstance(project, models.ProjectSchema) and project.last_revision is not None:
+            project_builds =  self.list_builds(**params)
+            spec = project.last_revision.spec
+            builds = spec.resources.builds if spec.resources else None
+            
+            if not builds:
+                click.echo(f" {err} No builds found in project '{params['project_name']}'!")
+                return False
+            
+            while builds and project_builds == []:
+                click.echo(f" {err} Waiting for builds to start '{params['project_name']}'!")
+                time.sleep(self._lag)
+                project_builds = self.list_builds(**params)
+            
+            if isinstance(project_builds, list):
+                running_builds = [b for b in project_builds if b.last_run and b.last_run.status in ['Pending','Running']]
+                while any(running_builds):
+                    click.echo(f" {spin} Waiting for builds to finish...")
                     time.sleep(self._lag)
-                return True
+                    project_builds = self.list_builds(**params)
+
+            click.echo(f" {chk} All builds finished!")
+            return True            
     
     def _wait_stages_finish_updating(self, **params):
         counter = 0
@@ -408,7 +389,7 @@ class PRAXClient:
         return errs if errs else models.PipelineSchema(**response.json())
     
     def submit_pipeline(self, pipeline_name: str, parameters: dict|None=None, **filters) -> models.PipelineSchema | models.ErrorResponse:
-        response, errs = self._post(f'pipelines/{pipeline_name}/submit', json=parameters, params=filters or None)
+        response, errs = self._post(f'pipelines/{pipeline_name}/submit', json={'parameters': parameters}, params=filters or None)
         return errs if errs else models.PipelineSchema(**response.json())
     
     def get_pipeline_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
@@ -440,7 +421,10 @@ class PRAXClient:
         return errs if errs else models.BuildSchema(**response.json())
     
     def submit_build(self, build_name: str, parameters: dict|None=None,  **filters) -> models.BuildSchema | models.ErrorResponse:
-        response, errs = self._post(f'builds/{build_name}/submit', json=parameters, params=filters or None)
+        response, errs = self._post(f'builds/{build_name}/submit', 
+                                    json={'parameters': parameters}, 
+                                    params=filters or None)
+        import pdb; pdb.set_trace()
         return errs if errs else models.BuildSchema(**response.json())
     
     def get_build_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
