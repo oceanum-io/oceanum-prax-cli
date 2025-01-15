@@ -173,25 +173,28 @@ class PRAXClient:
         messaged = False
         project = self.get_project(**params)
         if isinstance(project, models.ProjectSchema) and project.last_revision is not None:
+            params['project'] = params.pop('project_name', project.name)
             project_builds =  self.list_builds(**params)
             spec = project.last_revision.spec
             builds = spec.resources.builds if spec.resources else None
             
             if not builds:
-                click.echo(f" {err} No builds found in project '{params['project_name']}'!")
+                click.echo(f" {chk} No builds found in project '{project.name}'!")
                 return False
             
             while builds and project_builds == []:
-                click.echo(f" {err} Waiting for builds to start '{params['project_name']}'!")
+                click.echo(f" {spin} Waiting for builds to start '{project.name}'!")
                 time.sleep(self._lag)
                 project_builds = self.list_builds(**params)
-            
+            print (project_builds)
             if isinstance(project_builds, list):
                 running_builds = [b for b in project_builds if b.last_run and b.last_run.status in ['Pending','Running']]
                 while any(running_builds):
                     click.echo(f" {spin} Waiting for builds to finish...")
                     time.sleep(self._lag)
                     project_builds = self.list_builds(**params)
+                    if isinstance(project_builds, list):
+                        running_builds = [b for b in project_builds if b.last_run and b.last_run.status in ['Pending','Running']]
 
             click.echo(f" {chk} All builds finished!")
             return True            
