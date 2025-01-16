@@ -175,18 +175,25 @@ class PRAXClient:
         if isinstance(project, models.ProjectSchema) and project.last_revision is not None:
             params['project'] = params.pop('project_name', project.name)
             project_builds =  self.list_builds(**params)
+
+            if not isinstance(project_builds, list):
+                click.echo(f" {err} Failed to get project builds!")
+                return False
             spec = project.last_revision.spec
             builds = spec.resources.builds if spec.resources else None
             
             if not builds:
                 click.echo(f" {chk} No builds found in project '{project.name}'!")
-                return False
+                return True
             
-            while builds and project_builds == []:
-                click.echo(f" {spin} Waiting for builds to start '{project.name}'!")
+            while builds and (project_builds == [] or all([p.last_run is None for p in project_builds])):
+                click.echo(f" {spin} Waiting for builds to start...")
                 time.sleep(self._lag)
                 project_builds = self.list_builds(**params)
-            print (project_builds)
+                if not isinstance(project_builds, list):
+                    click.echo(f" {err} Failed to get project builds!")
+                    return False
+
             if isinstance(project_builds, list):
                 running_builds = [b for b in project_builds if b.last_run and b.last_run.status in ['Pending','Running']]
                 while any(running_builds):
@@ -195,9 +202,18 @@ class PRAXClient:
                     project_builds = self.list_builds(**params)
                     if isinstance(project_builds, list):
                         running_builds = [b for b in project_builds if b.last_run and b.last_run.status in ['Pending','Running']]
-
-            click.echo(f" {chk} All builds finished!")
-            return True            
+            if builds and project_builds:
+                click.echo(f" {chk} All builds finished!")
+                if isinstance(project_builds, list):
+                    for build in project_builds:
+                        if build.last_run and build.last_run.status in ['Failed','Error']:
+                            click.echo(f" {err} Build '{build.name}' failed to start or while running!")
+                            click.echo(f"Inspect Build Run with 'oceanum prax describe build {build.name} --project {project.name} --org {project.org} --stage {build.stage}'!")
+                            return False
+            return True
+        else:
+            click.echo(f" {err} Failed to get project details!")
+            return False        
     
     def _wait_stages_finish_updating(self, **params):
         counter = 0
@@ -281,12 +297,14 @@ class PRAXClient:
         start = time.time()
         committed = self._wait_project_commit(**params)
         if committed:
-            self._wait_stages_start_updating(**params)
-            self._wait_builds_to_finish(**params)
-            self._wait_stages_finish_updating(**params)
-            self._check_routes(**params)
+            started_updating = self._wait_stages_start_updating(**params)
+            build_succeeded = self._wait_builds_to_finish(**params)
+            if build_succeeded:
+                self._wait_stages_finish_updating(**params)
+                self._check_routes(**params)
             delta = timedelta(seconds=time.time()-start)
-            click.echo(f" {watch} Deployment finished in {humanize.naturaldelta(delta)}.")
+            with_error = "(with errors) " if not all([committed, started_updating, build_succeeded]) else " "
+            click.echo(f" {watch} Deployment finished {with_error}in {humanize.naturaldelta(delta)}.")
         return True
     
     @classmethod

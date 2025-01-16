@@ -90,7 +90,7 @@ def validate_project(ctx: click.Context, specfile: click.Path):
 @login_required
 def deploy_project(
     ctx: click.Context, 
-    specfile: click.Path, 
+    specfile: click.Path,
     name: str|None, 
     org: str|None, 
     user: str|None,
