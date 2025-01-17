@@ -5,6 +5,21 @@ from oceanum.cli.common.symbols import wrn
 
 from .models import ErrorResponse, ProjectSpec, SecretData
 
+def format_run_status(status: str) -> str:
+    status = status.lower()
+    if status == 'pending':
+        return click.style(status.upper(), fg='white')
+    elif status == 'running':
+        return click.style(status.upper(), fg='cyan')
+    elif status == 'succeeded':
+        return click.style(status.upper(), fg='green')
+    elif status == 'failed':
+        return click.style(status.upper(), fg='red')
+    elif status == 'error':
+        return click.style(status.upper(), fg='red')
+    else:
+        return status
+
 def format_route_status(status: str) -> str:
     if status == 'online':
         return click.style(status.upper(), fg='green')

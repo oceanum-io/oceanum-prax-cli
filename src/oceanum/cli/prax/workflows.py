@@ -17,7 +17,7 @@ from .project import (
     project_name_option,
     name_argument
 )
-from .utils import echoerr
+from .utils import echoerr, format_run_status as frs
 
 def parse_parameters(parameters: list[str]|None) -> dict|None:
     params = {}
@@ -36,7 +36,7 @@ LIST_FIELDS = [
     RenderField(
         label='Last Run', 
         path='$.last_run', 
-        mod=lambda x: x['status'] if x is not None else 'N/A'
+        mod=lambda x: frs(x['status']) if x is not None else 'N/A'
     ),
     RenderField(
         label='Started at', 
@@ -267,6 +267,10 @@ def retry_task(ctx: click.Context, name: str, **filters):
 @output_format_option
 @login_required
 def list_builds(ctx: click.Context, output: str, **filters):
+    build_fields = LIST_FIELDS + [
+        RenderField(label='Source Branch/Tag', path='$.source_ref'),
+    ]
+    build_fields.pop(-2)
     client = PRAXClient(ctx)
     builds =  client.list_builds(**{
         k: v for k, v in filters.items() if v is not None
@@ -278,7 +282,7 @@ def list_builds(ctx: click.Context, output: str, **filters):
         echoerr(builds)
         sys.exit(1)
     else:
-        click.echo(Renderer(data=builds, fields=LIST_FIELDS).render(output_format=output))
+        click.echo(Renderer(data=builds, fields=build_fields).render(output_format=output))
 
 
 @describe.command(name='build', help='Describe PRAX Build')

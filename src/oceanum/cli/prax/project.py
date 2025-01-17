@@ -91,7 +91,7 @@ def validate_project(ctx: click.Context, specfile: click.Path):
 def deploy_project(
     ctx: click.Context, 
     specfile: click.Path,
-    name: str|None, 
+    name: str|None,
     org: str|None, 
     user: str|None,
     wait: bool,
