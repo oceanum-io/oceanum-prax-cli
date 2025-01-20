@@ -1362,12 +1362,6 @@ class JSONPatchOpSchema(BaseModel):
     )
 
 
-class ConfirmationResponse(BaseModel):
-    detail: str = Field(
-        default='OK', description='The confirmation message', title='Detail'
-    )
-
-
 class PermissionsSchema(BaseModel):
     subject: str = Field(
         ...,
@@ -1380,6 +1374,23 @@ class PermissionsSchema(BaseModel):
     )
     delete: bool = Field(
         default=False, description='Can delete the resource', title='delete'
+    )
+    assign: bool = Field(
+        default=False,
+        description='Can assign permissions to other users',
+        title='assign',
+    )
+
+
+class ResourcePermissionsSchema(BaseModel):
+    users: list[PermissionsSchema] = Field(..., title='Users')
+    groups: list[PermissionsSchema] = Field(..., title='Groups')
+    name: str = Field(..., max_length=255, title='Name')
+
+
+class ConfirmationResponse(BaseModel):
+    detail: str = Field(
+        default='OK', description='The confirmation message', title='Detail'
     )
 
 
