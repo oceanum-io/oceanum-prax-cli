@@ -270,7 +270,7 @@ def list_builds(ctx: click.Context, output: str, **filters):
     build_fields = LIST_FIELDS + [
         RenderField(label='Source Branch/Tag', path='$.source_ref'),
     ]
-    build_fields.pop(-2)
+    #build_fields.pop(-2)
     client = PRAXClient(ctx)
     builds =  client.list_builds(**{
         k: v for k, v in filters.items() if v is not None
