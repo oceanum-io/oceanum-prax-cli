@@ -470,10 +470,10 @@ class PRAXClient:
         response, errs = self._get(f'routes/{route_name}')
         return errs if errs else models.RouteSchema(**response.json())
     
-    def update_route_thumbnail(self, route_name: str, thumbnail: click.File) -> models.RouteThumbnailSchema | models.ErrorResponse:
+    def update_route_thumbnail(self, route_name: str, thumbnail: click.File) -> models.RouteSchema | models.ErrorResponse:
         files = {'thumbnail': thumbnail}
         response, errs = self._post(f'routes/{route_name}/thumbnail', files=files)
-        return errs if errs else models.RouteThumbnailSchema(**response.json())
+        return errs if errs else models.RouteSchema(**response.json())
     
     def validate(self, specfile: str) -> models.ProjectSpec | models.ErrorResponse:
         resp = self.load_spec(specfile)
@@ -491,24 +491,24 @@ class PRAXClient:
         
     def allow_project(self, 
         project_name: str, 
-        permissions: models.PermissionsSchema, 
+        permissions: models.ResourcePermissionsSchema, 
         **filters
-    ) -> models.ConfirmationResponse | models.ErrorResponse:
+    ) -> models.ResourcePermissionsSchema | models.ErrorResponse:
         response, errs = self._post(
             f'projects/{project_name}/permissions',
             params=filters or None, 
             json=permissions.model_dump()
         )
-        return errs if errs else models.ConfirmationResponse(**response.json())
+        return errs if errs else models.ResourcePermissionsSchema(**response.json())
     
     def allow_route(self, 
         route_name: str, 
-        permissions: models.PermissionsSchema, 
+        permissions: models.ResourcePermissionsSchema, 
         **filters
-    ) -> models.ConfirmationResponse | models.ErrorResponse:
+    ) -> models.ResourcePermissionsSchema | models.ErrorResponse:
         response, errs = self._post(
             f'routes/{route_name}/permissions',
             params=filters or None, 
             json=permissions.model_dump()
         )
-        return errs if errs else models.ConfirmationResponse(**response.json())
+        return errs if errs else models.ResourcePermissionsSchema(**response.json())

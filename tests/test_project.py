@@ -355,7 +355,8 @@ class TestAllowProject(TestCase):
         response.json.return_value = {'detail': 'not found!'}
         response.raise_for_status.side_effect = requests.exceptions.HTTPError('404')
         with patch('requests.request', return_value=response) as mock_request:
-            result = runner.invoke(main, ['prax', 'allow', 'project', 'some-random-project','some-user'])
+            result = runner.invoke(main, ['prax', 'allow', 'project', 'some-random-project','--user','some-user'])
+            print(result.output)
             assert result.exit_code == 1
             assert mock_request.call_count == 1
 
@@ -364,6 +365,7 @@ class TestAllowProject(TestCase):
         post_response.json.return_value = {'success': True}
         with patch.object(client.PRAXClient, 'get_project', return_value=project_schema) as mock_request:
             with patch.object(client.PRAXClient, '_post', return_value=(post_response, None)) as mock_request:
-                result = runner.invoke(main, ['prax', 'allow', 'project', 'test-project','some-user','--change'])
+                result = runner.invoke(main, ['prax', 'allow', 'project', 'test-project','--user','some-user','--change'])
+                print(result.output)
                 assert result.exit_code == 0
                 assert 'success' in result.output

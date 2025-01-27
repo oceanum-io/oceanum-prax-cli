@@ -360,27 +360,39 @@ def update_project(ctx: click.Context, project_name: str, description: str, org:
 
 @allow.command(name='project')
 @click.argument('project_name', type=str, required=True)
-@click.argument('subject', type=str, required=True)
 @project_org_option
-@project_user_option    
+@project_user_option
+@click.option('-g','--group', type=str, required=False, multiple=True)
+@click.option('-u','--user', type=str, required=False, multiple=True)
+@click.option('-a','--assign', help='Allow to assign project permissions', default=None, type=bool, is_flag=True)
 @click.option('-v','--view', help='Allow to view the project', default=None, type=bool, is_flag=True)
 @click.option('-c','--change', help='Allow to change the project, implies --view', default=None, type=bool, is_flag=True)
 @click.option('-d','--delete', help='Allow to delete the project, implies --view and --change', default=None, type=bool, is_flag=True)
 @click.pass_context
-def allow_project(ctx: click.Context, project_name: str, org: str, user:str, view: bool, change: bool, delete: bool, subject: str):
+def allow_project(ctx: click.Context, project_name: str, org: str, group: list[str],
+                  user: list[str], assign: bool, view: bool, change: bool, 
+                  delete: bool):
+    
+    def _get_perm(subject: str):
+        return models.PermissionsSchema(
+            subject=subject,
+            view=view if view is not None else None,
+            change=change if change is not None else None,
+            assign=assign if assign is not None else None,
+            delete=delete if delete is not None else None
+        )
+
     client = PRAXClient(ctx)
     response = client.get_project(project_name, org=org, user=user)
     if isinstance(response, models.ProjectSchema):
-        permission = models.PermissionsSchema(
-            view=bool(view or change or delete),
-            change=bool(change or delete),
-            delete=bool(delete),
-            subject=subject,
+        permissions = models.ResourcePermissionsSchema(
+            groups=[_get_perm(g) for g in group],
+            users=[_get_perm(u) for u in user],
         )
-        response = client.allow_project(response.name, permission)
-        if isinstance(response, models.ConfirmationResponse):
+        response = client.allow_project(response.name, permissions)
+        if not isinstance(response, models.ErrorResponse):
             click.echo(f"{chk} Permissions for project '{project_name}' set successfully!")
-            click.echo(f"{info} {response.detail}")
+            click.echo(f"{info} {response}")
     if isinstance(response, models.ErrorResponse):
         click.echo(f" {err} Failed to grant permission to project!")
         echoerr(response)

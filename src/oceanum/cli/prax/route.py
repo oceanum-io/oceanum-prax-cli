@@ -122,24 +122,36 @@ def update_thumbnail(ctx: click.Context, route_name: str, thumbnail_file: click.
 
 @allow.command(name='route')
 @click.argument('route_name', type=str, required=True)
-@click.argument('subject', type=str, required=True)
+@click.option('-g','--group', type=str, required=False, multiple=True)
+@click.option('-u','--user', type=str, required=False, multiple=True)
 @click.option('-v','--view', help='Allow to view the route', default=None, type=bool, is_flag=True)
 @click.option('-c','--change', help='Allow to change the route, implies --view', default=None, type=bool, is_flag=True)
+@click.option('-a','--assign', help='Allow to assign route permissions', default=None, type=bool, is_flag=True)
 @click.pass_context
 @login_required
-def allow_route(ctx: click.Context, route_name: str, subject: str, view: bool, change: bool):
+def allow_route(ctx: click.Context, route_name: str, group: list[str], 
+                user: list[str], view: bool, change: bool, assign: bool):
+    
+    def _get_perm(subject: str):
+        return models.PermissionsSchema(
+            subject=subject,
+            view=view if view is not None else None,
+            change=change if change is not None else None,
+            assign=assign if assign is not None else None
+        )
+
     client = PRAXClient(ctx)
     response = client.get_route(route_name)
+
     if isinstance(response, models.RouteSchema):
-        permission = models.PermissionsSchema(
-            view=bool(view),
-            change=bool(change),
-            subject=subject,
+        permissions = models.ResourcePermissionsSchema(
+            groups=[_get_perm(g) for g in group],
+            users=[_get_perm(u) for u in user],
         )
-        response = client.allow_route(response.name, permission)
-        if isinstance(response, models.ConfirmationResponse):
-            click.echo(f"{chk} Permissions for route '{route_name}' set successfully!")
-            click.echo(f"{info} {response.detail}")
+        response = client.allow_route(response.name, permissions)
+        if not isinstance(response, models.ErrorResponse):
+            click.echo(f"{chk} Permissions for route '{route_name}' updated successfully!")
+            click.echo(f"{info} {response}")
     if isinstance(response, models.ErrorResponse):
         click.echo(f" {err} Failed to grant permission to route!")
         echoerr(response)

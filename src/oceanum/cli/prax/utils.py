@@ -3,7 +3,7 @@ import click
 
 from oceanum.cli.common.symbols import wrn
 
-from .models import ErrorResponse, ProjectSpec, SecretData
+from .models import ErrorResponse, ProjectSpec, SecretData, PermissionsSchema
 
 def format_run_status(status: str) -> str:
     status = status.lower()
