@@ -30,6 +30,10 @@ html_theme_options = {
     "collapse_navigation": False,
     "show_nav_level": 2,
     "secondary_sidebar_items": ["page-toc", "edit-this-page", "sourcelink"],
+    "logo": {
+      "image_light": "oceanum-secondary-logo-marine-rgb.svg",
+      "image_dark": "oceanum-secondary-logo-powder-blue-rgb.svg",
+    },
     "icon_links": [
         {
             "name": "GitHub",
