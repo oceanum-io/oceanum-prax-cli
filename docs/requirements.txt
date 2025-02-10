@@ -1,3 +1,4 @@
+git+https://github.com/oceanum-io/oceanum-python.git@prax-cli
 autodoc-pydantic
 pydata-sphinx-theme
 sphinxcontrib-programoutput
