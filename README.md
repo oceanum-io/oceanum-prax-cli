@@ -10,7 +10,7 @@ Deploy and manage your projects on Oceanum.io PRAX platform. In the PRAX platfor
 ## Installation
 
 ```
-pip install oceanum-prax-cli
+pip install oceanum-prax
 ```
 
 ## Authentication
@@ -26,4 +26,4 @@ oceanum prax --help
 
 ## Documentation
 
-ReadTheDocs: [https://oceanum-prax-cli.readthedocs.io/](https://oceanum-prax-cli.readthedocs.io/)
+ReadTheDocs: [https://oceanum-python.readthedocs.io/](https://oceanum-python.readthedocs.io/en/prax-cli/cli.html#oceanum-prax-commands)
