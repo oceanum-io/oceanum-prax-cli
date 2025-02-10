@@ -4,7 +4,7 @@ import yaml
 import time
 from datetime import timedelta
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal, Optional, Type
 
 import click
 import humanize
@@ -378,13 +378,27 @@ class PRAXClient:
         response, errs = self._get(f'tasks/{task_id}', params=filters or None)
         return errs if errs else models.TaskSchema(**response.json())
     
-    def submit_task(self, task_name: str, parameters: dict|None, **filters) -> models.TaskSchema | models.ErrorResponse:
+    def _submit(self, 
+            resp_model: Type[models.TaskSchema|models.BuildSchema|models.PipelineSchema],
+            name: str, 
+            parameters: dict|None, 
+            **filters) -> models.TaskSchema | models.BuildSchema | models.PipelineSchema | models.ErrorResponse:
+        endpoint = resp_model.__name__.removesuffix('Schema').lower()+"s"
         response, errs = self._post(
-            f'tasks/{task_name}/submit', 
-            json={'parameters':parameters} if parameters else None, 
+            f'{endpoint}/{name}/submit', 
+            json={'parameters': parameters} if parameters else None, 
             params=filters or None
         )
-        return errs if errs else models.TaskSchema(**response.json())
+        return errs if errs else resp_model(**response.json())
+    
+    def submit_task(self, task_name: str, parameters: dict|None, **filters) -> models.TaskSchema | models.ErrorResponse:
+        task = self._submit(models.TaskSchema, task_name, parameters, **filters)
+        if isinstance(task, models.TaskSchema):
+            return task
+        elif isinstance(task, models.ErrorResponse):
+            return task
+        else:
+            return models.ErrorResponse(detail="Failed to submit task!")
     
     def get_task_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
         response, errs = self._get(f'task-runs/{run_name}', params=filters or None)
@@ -410,8 +424,13 @@ class PRAXClient:
         return errs if errs else models.PipelineSchema(**response.json())
     
     def submit_pipeline(self, pipeline_name: str, parameters: dict|None=None, **filters) -> models.PipelineSchema | models.ErrorResponse:
-        response, errs = self._post(f'pipelines/{pipeline_name}/submit', json={'parameters': parameters}, params=filters or None)
-        return errs if errs else models.PipelineSchema(**response.json())
+        pipeline = self._submit(models.PipelineSchema, pipeline_name, parameters, **filters)
+        if isinstance(pipeline, models.PipelineSchema):
+            return pipeline
+        elif isinstance(pipeline, models.ErrorResponse):
+            return pipeline
+        else:
+            return models.ErrorResponse(detail="Failed to submit pipeline!")
     
     def get_pipeline_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
         response, errs = self._get(f'pipeline-runs/{run_name}', params=filters or None)
@@ -442,10 +461,13 @@ class PRAXClient:
         return errs if errs else models.BuildSchema(**response.json())
     
     def submit_build(self, build_name: str, parameters: dict|None=None,  **filters) -> models.BuildSchema | models.ErrorResponse:
-        response, errs = self._post(f'builds/{build_name}/submit', 
-                                    json={'parameters': parameters}, 
-                                    params=filters or None)
-        return errs if errs else models.BuildSchema(**response.json())
+        build = self._submit(models.BuildSchema, build_name, parameters, **filters)
+        if isinstance(build, models.BuildSchema):
+            return build
+        elif isinstance(build, models.ErrorResponse):
+            return build
+        else:
+            return models.ErrorResponse(detail="Failed to submit build!")
     
     def get_build_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
         response, errs = self._get(f'build-runs/{run_name}', params=filters or None)
