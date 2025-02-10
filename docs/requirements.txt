@@ -1,4 +1,4 @@
-oceanum
+oceanum-prax
 autodoc-pydantic
 pydata-sphinx-theme
 sphinxcontrib-programoutput
