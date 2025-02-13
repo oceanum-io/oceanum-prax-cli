@@ -1934,85 +1934,6 @@ class StageSchema(BaseModel):
     updated_at: datetime = Field(..., title='Updated At')
 
 
-class ContainerBaseSpec(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    name: str = Field(
-        default='main',
-        description='The container name',
-        max_length=32,
-        min_length=3,
-        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
-        title='Container Name',
-    )
-    description: Optional[str] = Field(default=None, title='Resource Description')
-    resources: Optional[ContainerResources] = Field(
-        default=None,
-        description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
-        title='Container Resources',
-    )
-    env: Optional[list[EnvVarValue]] = Field(
-        default=None, title='Container Environment Variables'
-    )
-    mounts: Optional[list[ProjectedVolumeMount]] = Field(
-        default=None,
-        description='List of existing ConfigMaps or Secrets references to mount in the container',
-        title='Container Mounts',
-    )
-
-
-class ContainerImageSpec(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    name: Optional[DockerImageURL] = Field(
-        default=None, description='A Public Image Repository URL', title='Public Image'
-    )
-    description: Optional[str] = Field(default=None, title='Resource Description')
-    resources: Optional[ContainerResources] = Field(
-        default=None,
-        description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
-        title='Container Resources',
-    )
-    env: Optional[list[EnvVarValue]] = Field(
-        default=None, title='Container Environment Variables'
-    )
-    mounts: Optional[list[ProjectedVolumeMount]] = Field(
-        default=None,
-        description='List of existing ConfigMaps or Secrets references to mount in the container',
-        title='Container Mounts',
-    )
-    image_ref: Optional[ImageRef] = Field(
-        default=None,
-        alias='imageRef',
-        description='Image repository from the list of defined Project images to run the container',
-        title='Image Repository Reference',
-    )
-    build_ref: Optional[BuildRef] = Field(
-        default=None,
-        alias='buildRef',
-        description='The build reference from the list of Project builds',
-        title='Image Build reference',
-    )
-
-
-class PipelineTaskArguments(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    artifacts: Optional[list[PipelineTaskArtifact]] = Field(
-        default=None,
-        description='Artifacts declares the artifacts that a step produces',
-        title='Artifacts',
-    )
-    parameters: Optional[list[PipelineTaskParameter]] = Field(
-        default=None,
-        description='Parameters declares the parameters that a step produces',
-        title='Parameters',
-    )
-
-
 class BuildSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -2083,11 +2004,56 @@ class BuildSpec(BaseModel):
         description='        The Dockerfile path relative to source-code root, to be executed on the base-image,         Cannot be provided with baseImage or buildCommand.        ',
         title='Build Dockerfile',
     )
-    event_sensor_container: Optional[ContainerBaseSpec] = Field(
+
+
+class ContainerImageSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: Optional[DockerImageURL] = Field(
+        default=None, description='A Public Image Repository URL', title='Public Image'
+    )
+    description: Optional[str] = Field(default=None, title='Resource Description')
+    resources: Optional[ContainerResources] = Field(
         default=None,
-        alias='eventSensorContainer',
-        description='The event sensor (pipelinePhase) container to be used for build events',
-        title='Event Sensor Container',
+        description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
+        title='Container Resources',
+    )
+    env: Optional[list[EnvVarValue]] = Field(
+        default=None, title='Container Environment Variables'
+    )
+    mounts: Optional[list[ProjectedVolumeMount]] = Field(
+        default=None,
+        description='List of existing ConfigMaps or Secrets references to mount in the container',
+        title='Container Mounts',
+    )
+    image_ref: Optional[ImageRef] = Field(
+        default=None,
+        alias='imageRef',
+        description='Image repository from the list of defined Project images to run the container',
+        title='Image Repository Reference',
+    )
+    build_ref: Optional[BuildRef] = Field(
+        default=None,
+        alias='buildRef',
+        description='The build reference from the list of Project builds',
+        title='Image Build reference',
+    )
+
+
+class PipelineTaskArguments(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    artifacts: Optional[list[PipelineTaskArtifact]] = Field(
+        default=None,
+        description='Artifacts declares the artifacts that a step produces',
+        title='Artifacts',
+    )
+    parameters: Optional[list[PipelineTaskParameter]] = Field(
+        default=None,
+        description='Parameters declares the parameters that a step produces',
+        title='Parameters',
     )
 
 

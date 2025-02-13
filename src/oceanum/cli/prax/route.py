@@ -8,7 +8,7 @@ from oceanum.cli.common.renderer import Renderer, output_format_option, RenderFi
 from oceanum.cli.auth import login_required
 from oceanum.cli.common.symbols import wrn, chk, info, err
 from . import models
-from .main import list_group, describe, update, allow
+from .main import list_group, describe, update, allow, logs
 from .client import PRAXClient
 
 from .utils import format_route_status as _frs, echoerr
@@ -156,3 +156,18 @@ def allow_route(ctx: click.Context, route_name: str, group: list[str],
         click.echo(f" {err} Failed to grant permission to route!")
         echoerr(response)
         sys.exit(1)
+
+@logs.command(name='route', help='Get logs for a PRAX Route')
+@click.pass_context
+@click.argument('route_name', type=str)
+@click.option('-n','--lines', help='Number of lines to show', default=1000, type=int)
+@click.option('-f','--follow', help='Follow logs', default=False, type=bool, is_flag=True)
+@login_required
+def get_route_logs(ctx: click.Context, route_name: str, lines: int, follow: bool):
+    client = PRAXClient(ctx)
+    for line in client.get_route_logs(route_name, lines, follow):
+        if isinstance(line, models.ErrorResponse):
+            click.echo(f"{wrn} Error fetching logs:")
+            echoerr(line)
+            sys.exit(1)
+        click.echo(line)

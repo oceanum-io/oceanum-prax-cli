@@ -4,7 +4,7 @@ import yaml
 import time
 from datetime import timedelta
 from pathlib import Path
-from typing import Literal, Optional, Type
+from typing import Literal, Optional, Type, Iterable
 
 import click
 import humanize
@@ -491,6 +491,21 @@ class PRAXClient:
     def get_route(self, route_name: str) -> models.RouteSchema | models.ErrorResponse:
         response, errs = self._get(f'routes/{route_name}')
         return errs if errs else models.RouteSchema(**response.json())
+    
+    def get_route_logs(self, route_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
+        filters['follow'] = follow
+        filters['tail'] = lines
+        response, errs = self._get(
+            f'routes/{route_name}/logs', 
+            params=filters or None,
+            stream=True
+        )
+        if response.ok:
+            for line in response.iter_lines():
+                yield line
+        else:
+            yield errs
+        
     
     def update_route_thumbnail(self, route_name: str, thumbnail: click.File) -> models.RouteSchema | models.ErrorResponse:
         files = {'thumbnail': thumbnail}

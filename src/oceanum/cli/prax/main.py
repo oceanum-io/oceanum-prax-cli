@@ -48,3 +48,7 @@ def retry():
 @prax.group(name='allow',help='Manage resources permissions')
 def allow():
     pass
+
+@prax.group(name='logs',help='View container logs')
+def logs():
+    pass
