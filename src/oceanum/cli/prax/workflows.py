@@ -8,7 +8,7 @@ from oceanum.cli.common.symbols import chk, err, spin
 from oceanum.cli.common.utils import format_dt
 
 from . import models
-from .main import list_group, describe, submit, terminate, retry
+from .main import list_group, describe, submit, terminate, retry, logs
 from .client import PRAXClient
 from .project import (
     project_org_option, 
@@ -256,6 +256,38 @@ def retry_task(ctx: click.Context, name: str, **filters):
         else:
             click.echo(f"{chk} Task retried successfully! Run ID: {'N/A' if resp is None else resp.name}")
 
+
+@logs.command(name='task', help='Get the Latest Run PRAX Task logs')
+@click.pass_context
+@name_argument
+@project_org_option
+@project_user_option
+@project_name_option
+@project_stage_option
+@click.option('-n','--lines', help='Number of lines to show', default=1000, type=int)
+@click.option('-f','--follow', help='Follow logs', default=False, type=bool, is_flag=True)
+@login_required
+def get_task_logs(ctx: click.Context, name: str, lines: int, follow: bool, **filters):
+    client = PRAXClient(ctx)
+    task = client.get_task(name, **filters)
+    if isinstance(task, models.ErrorResponse):
+        click.echo(f"{err} Error fetching task:")
+        echoerr(task)
+        sys.exit(1)
+    if task.last_run is None:
+        click.echo(f"{err} No runs found for task '{name}'!")
+        sys.exit(1)
+
+    latest_run = task.last_run
+    click.echo(f"Fetching logs for task run: {latest_run.name} ...")
+    for line in client.get_task_run_logs(latest_run.name, lines, follow):
+        if isinstance(line, models.ErrorResponse):
+            click.echo(f"{err} Error fetching logs:")
+            echoerr(line)
+            sys.exit(1)
+        click.echo(line)
+
+
 @list_group.command(name='builds', help='List all PRAX Builds')
 @click.pass_context
 @click.option('--search', help='Search by names or description',
@@ -418,6 +450,36 @@ def retry_build(ctx: click.Context, name: str, **filters):
             click.echo(f"{chk} Build retried successfully! Run ID: {'N/A' if resp is None else resp.name}")
 
 
+@logs.command(name='build', help='Get the Latest Run PRAX Build logs')
+@click.pass_context
+@name_argument
+@project_org_option
+@project_user_option
+@project_name_option
+@project_stage_option
+@click.option('-n','--lines', help='Number of lines to show', default=1000, type=int)
+@click.option('-f','--follow', help='Follow logs', default=False, type=bool, is_flag=True)
+@login_required
+def get_build_logs(ctx: click.Context, name: str, lines: int, follow: bool, **filters):
+    client = PRAXClient(ctx)
+    build = client.get_build(name, **filters)
+    if isinstance(build, models.ErrorResponse):
+        click.echo(f"{err} Error fetching build:")
+        echoerr(build)
+        sys.exit(1)
+    if build.last_run is None:
+        click.echo(f"{err} No runs found for build '{name}'!")
+        sys.exit(1)
+
+    latest_run = build.last_run
+    click.echo(f"Fetching logs for build run: {latest_run.name} ...")
+    for line in client.get_build_run_logs(latest_run.name, lines, follow):
+        if isinstance(line, models.ErrorResponse):
+            click.echo(f"{err} Error fetching logs:")
+            echoerr(line)
+            sys.exit(1)
+        click.echo(line)
+
 
 @describe.command(name='pipeline', help='Describe PRAX Pipeline')
 @click.pass_context
@@ -560,6 +622,35 @@ def retry_pipeline(ctx: click.Context, name: str, **filters):
         else:
             click.echo(f"{chk} Pipeline retried successfully! Run ID: {'N/A' if resp is None else resp.name}")
 
+@logs.command(name='pipeline', help='Get the Latest Run PRAX Pipeline logs')
+@click.pass_context
+@name_argument
+@project_org_option
+@project_user_option
+@project_name_option
+@project_stage_option
+@click.option('-n','--lines', help='Number of lines to show', default=1000, type=int)
+@click.option('-f','--follow', help='Follow logs', default=False, type=bool, is_flag=True)
+@login_required
+def get_pipeline_logs(ctx: click.Context, name: str, lines: int, follow: bool, **filters):
+    client = PRAXClient(ctx)
+    pipeline = client.get_pipeline(name, **filters)
+    if isinstance(pipeline, models.ErrorResponse):
+        click.echo(f"{err} Error fetching pipeline:")
+        echoerr(pipeline)
+        sys.exit(1)
+    if pipeline.last_run is None:
+        click.echo(f"{err} No runs found for pipeline '{name}'!")
+        sys.exit(1)
+
+    latest_run = pipeline.last_run
+    click.echo(f"Fetching logs for pipeline run: {latest_run.name} ...")
+    for line in client.get_pipeline_run_logs(latest_run.name, lines, follow):
+        if isinstance(line, models.ErrorResponse):
+            click.echo(f"{err} Error fetching logs:")
+            echoerr(line)
+            sys.exit(1)
+        click.echo(line)
 
 # @stop.command(name='pipeline', help='Stop PRAX Pipeline')
 # @click.pass_context

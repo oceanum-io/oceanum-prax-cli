@@ -492,6 +492,49 @@ class PRAXClient:
         response, errs = self._get(f'routes/{route_name}')
         return errs if errs else models.RouteSchema(**response.json())
     
+    def get_build_run_logs(self, run_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
+        filters['follow'] = follow
+        filters['tail'] = lines
+        response, errs = self._get(
+            f'build-runs/{run_name}/logs', 
+            params=filters or None,
+            stream=True
+        )
+        if response.ok:
+            for line in response.iter_lines():
+                yield line
+        else:
+            yield errs
+
+
+    def get_task_run_logs(self, run_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
+        filters['follow'] = follow
+        filters['tail'] = lines
+        response, errs = self._get(
+            f'task-runs/{run_name}/logs', 
+            params=filters or None,
+            stream=True
+        )
+        if response.ok:
+            for line in response.iter_lines():
+                yield line
+        else:
+            yield errs
+
+    def get_pipeline_run_logs(self, run_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
+        filters['follow'] = follow
+        filters['tail'] = lines
+        response, errs = self._get(
+            f'pipeline-runs/{run_name}/logs', 
+            params=filters or None,
+            stream=True
+        )
+        if response.ok:
+            for line in response.iter_lines():
+                yield line
+        else:
+            yield errs
+    
     def get_route_logs(self, route_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
         filters['follow'] = follow
         filters['tail'] = lines
