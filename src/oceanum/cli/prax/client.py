@@ -89,11 +89,16 @@ def dump_with_secrets(spec: models.ProjectSpec) -> dict:
 class PRAXClient:
     def __init__(self, ctx: click.Context|None = None, token: str|None = None, service: str|None = None) -> None:
         if ctx is not None:
-            self.token = f"Bearer {ctx.obj.token.access_token}"
-            self.service = f'https://PRAX.{ctx.obj.domain}/api'
-        else:
-            self.token = token or os.getenv('PRAX_TOKEN')
-            self.service = service or os.getenv('PRAX_API_URL')
+            if ctx.obj.token:
+                self.token = f"Bearer {ctx.obj.token.access_token}"
+            else:
+                self.token = token or os.getenv('PRAX_API_TOKEN')
+                
+            if ctx.obj.domain.startswith('oceanum.'):
+                self.service = f'https://PRAX.{ctx.obj.domain}/api'
+            else:
+                self.service = service or os.getenv('PRAX_API_URL')
+        
         self.ctx = ctx
         self._lag = 2 # seconds
 
@@ -106,6 +111,8 @@ class PRAXClient:
             headers = kwargs.pop('headers', {})|{
                 'Authorization': f'{self.token}'
             }
+        else:
+            headers = kwargs.pop('headers', {})
         url = f"{self.service.removesuffix('/')}/{endpoint}"
         response = requests.request(method, url, headers=headers, **kwargs)
         return response, self._handle_errors(response)
