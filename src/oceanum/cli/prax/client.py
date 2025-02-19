@@ -101,6 +101,7 @@ class PRAXClient:
         
         self.ctx = ctx
         self._lag = 2 # seconds
+        self._deploy_start_time = time.time()
 
     def _request(self, 
         method: Literal['GET', 'POST', 'PUT','DELETE','PATCH'], 
@@ -177,51 +178,54 @@ class PRAXClient:
                 break
     
     def _wait_builds_to_finish(self, **params):
-        messaged = False
+        def get_builds(project) -> list[models.BuildSchema]:
+            builds = self.list_builds(project=project.name, org=project.org)
+            if not isinstance(builds, list):
+                click.echo(f" {err} Failed to get project builds!")
+                return []
+            return builds
+        
         project = self.get_project(**params)
+        
         if isinstance(project, models.ProjectSchema) and project.last_revision is not None:
             params['project'] = params.pop('project_name', project.name)
-            project_builds =  self.list_builds(**params)
-
-            if not isinstance(project_builds, list):
-                click.echo(f" {err} Failed to get project builds!")
-                return False
+            
             spec = project.last_revision.spec
             builds = spec.resources.builds if spec.resources else None
             
             if not builds:
                 click.echo(f" {chk} No builds found in project '{project.name}'!")
                 return True
-            
-            while builds and (project_builds == [] or all([p.last_run is None for p in project_builds])):
-                click.echo(f" {spin} Waiting for builds to start...")
-                time.sleep(self._lag)
-                project_builds = self.list_builds(**params)
-                if not isinstance(project_builds, list):
-                    click.echo(f" {err} Failed to get project builds!")
-                    return False
 
-            if isinstance(project_builds, list):
+            click.echo(f" {spin} Checking builds for project '{project.name}'...")
+            time.sleep(15)
+            while True:
+                time.sleep(self._lag)
+                project_builds = get_builds(project)
+                if not project_builds:
+                    continue
+                
+                finished_builds = [b for b in project_builds if b.last_run and b.last_run.status in ['Succeeded','Failed','Error']]
                 running_builds = [b for b in project_builds if b.last_run and b.last_run.status in ['Pending','Running']]
-                while any(running_builds):
-                    click.echo(f" {spin} Waiting for builds to finish...")
-                    time.sleep(self._lag)
-                    project_builds = self.list_builds(**params)
-                    if isinstance(project_builds, list):
-                        running_builds = [b for b in project_builds if b.last_run and b.last_run.status in ['Pending','Running']]
-            if builds and project_builds:
-                click.echo(f" {chk} All builds finished!")
-                if isinstance(project_builds, list):
+                
+                if project_builds == finished_builds:
+                    click.echo(f" {chk} All builds finished!")
                     for build in project_builds:
                         if build.last_run and build.last_run.status in ['Failed','Error']:
-                            click.echo(f" {err} Build '{build.name}' failed to start or while running!")
-                            click.echo(f"Inspect Build Run with 'oceanum prax describe build {build.name} --project {project.name} --org {project.org} --stage {build.stage}'!")
+                            click.echo(f" {err} Build '{build.name}-{build.stage}' failed to start or while running!")
+                            click.echo(f"Inspect Build Run logs with 'oceanum prax logs build {build.name} --project {project.name} --org {project.org} --stage {build.stage}' command !")
                             return False
-            return True
+                        elif build.last_run and build.last_run.status == 'Succeeded':
+                            click.echo(f" {chk} Build '{build.name}-{build.stage}' finished successfully!")
+                    break
+                elif running_builds:
+                    click.echo(f" {spin} Waiting for builds to finish...")
+                    continue
         else:
             click.echo(f" {err} Failed to get project details!")
-            return False        
-    
+            return False
+        return True
+            
     def _wait_stages_finish_updating(self, **params):
         counter = 0
         click.echo(f' {spin} Waiting for all stages to finish updating...')
@@ -301,7 +305,7 @@ class PRAXClient:
                 return models.ErrorResponse(detail=f"Failed to {action} run '{run_name}'!")
 
     def wait_project_deployment(self, **params) -> bool:
-        start = time.time()
+        self._deploy_start_time = time.time()
         committed = self._wait_project_commit(**params)
         if committed:
             started_updating = self._wait_stages_start_updating(**params)
@@ -309,7 +313,7 @@ class PRAXClient:
             if build_succeeded:
                 self._wait_stages_finish_updating(**params)
                 self._check_routes(**params)
-            delta = timedelta(seconds=time.time()-start)
+            delta = timedelta(seconds=time.time()-self._deploy_start_time)
             with_error = "(with errors) " if not all([committed, started_updating, build_succeeded]) else " "
             click.echo(f" {watch} Deployment finished {with_error}in {humanize.naturaldelta(delta)}.")
         return True
@@ -511,7 +515,7 @@ class PRAXClient:
             for line in response.iter_lines():
                 yield line
         else:
-            yield errs
+            yield errs if errs else models.ErrorResponse(detail=response.text)
 
 
     def get_task_run_logs(self, run_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
@@ -526,7 +530,7 @@ class PRAXClient:
             for line in response.iter_lines():
                 yield line
         else:
-            yield errs
+            yield errs if errs else models.ErrorResponse(detail=response.text)
 
     def get_pipeline_run_logs(self, run_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
         filters['follow'] = follow
@@ -540,7 +544,7 @@ class PRAXClient:
             for line in response.iter_lines():
                 yield line
         else:
-            yield errs
+            yield errs if errs else models.ErrorResponse(detail=response.text)
     
     def get_route_logs(self, route_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
         filters['follow'] = follow
@@ -554,7 +558,7 @@ class PRAXClient:
             for line in response.iter_lines():
                 yield line
         else:
-            yield errs
+            yield errs if errs else models.ErrorResponse(detail=response.text)
         
     
     def update_route_thumbnail(self, route_name: str, thumbnail: click.File) -> models.RouteSchema | models.ErrorResponse:

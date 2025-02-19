@@ -30,68 +30,39 @@ Next we can start to use the PRAX commands, for example:
 PRAX Projects
 -------------
 
-To create a new project, we need to have a project specification file. 
+PRAX Projects consist of a set of Resources, such as Sources, Images, Builds, Tasks, Pipelines, Services and (deployment) Stages. One or more of these resources can be defined in a project specification file that can be used to deploy the resources to the Oceanum.io PRAX platform. 
 
-Here is an example of a PRAX Project Specification file deployment:
+For a project to be valid and deployable, it must have at least one Stage with at least one deployable Resource such as a Task, a Service or a Pipeline (a Pipeline requires at least one Task).
+
+A single Task or a Service is the representation of a containerized application that can be deployed to the Oceanum.io PRAX platform and it requires at least one Docker Image to be set and a command to be executed within that Image. The difference between a Task and a Service is that a Service is a long-running container that can be accessed via a Route and a Task is a short-lived containerthat can be used as a processing unit to be deployed and executed on its own or within a Pipeline.
+
+The Docker Image for a Task or a Service can be defined from a public Docker Image repository, from a Private Docker Image repository or from a PRAX Build resource defined in the Project specification file.
+
+When defining a PRAX Build resource you have the option to provide directly a base-image and a build command or to connect the Build Resource to a Source-code repository and optionally provide a Dockerfile to be built or an installation script through the source-code. 
+
+When you connect a Source-code repository to a Build Resource, the Oceanum.io PRAX platform will attempt to establish an Webhook connection to the Source-code repository using the Github or Gitlab APIs. The Webhook connection will listen for changes in the Source-code repository and will trigger a new build of the Docker Image when a change is detected in the connected branch or tag.
+
+A minimal Project Specification file should look like this:
 
 .. code-block:: yaml
 
     name: my-project
     description: My project description
     resources:
-
-        builds:
-        - name: app-build
-          baseImage: python:3.12-slim
-          buildCommand: "pip install flask"
-
         tasks:
-        - name: whalesay
+        - name: my-task
           image: docker/whalesay:latest
           command: cowsay "Hello World!"
-
-        pipelines:
-        - name: my-pipeline
-          triggers:
-            cron:
-              # run once a day
-              schedule: "0 0 * * *"
-          steps:
-          - - name: step1
-              taskRef: whalesay
-
-        services:
-        - name: my-app
-          description: Just a flask app example
-          image:
-            buildRef: app-build
-          healthCheck:
-            path: /_healthz
-            port: 8080
-          command: |
-            python -c "                                                                                
-            import Flask
-            app = Flask(__name__)
-            @app.route('/')
-            def hello():
-                return 'Hello World!'
-            @app.route('/_healthz')
-            def healthz():
-                return 'OK'
-            app.run(host='0.0.0.0', port=8080)
-        
         stages:
         - name: test
           resources:
-            services:
-            - name: my-app
-            pipelines:
-            - name: my-pipeline
+            tasks:
+            - my-task
+
+See full reference for the Project Specification file in the :doc:`reference` section.
 
 Deploy an App
 -------------
-
-
 
 .. code-block:: yaml
 
