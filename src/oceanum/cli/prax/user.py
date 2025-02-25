@@ -2,7 +2,7 @@
 import click
 
 from oceanum.cli.common.renderer import Renderer, RenderField
-from oceanum.cli.common.symbols import err
+from oceanum.cli.common.symbols import err, chk
 from oceanum.cli.auth import login_required
 
 from . import models
@@ -21,7 +21,10 @@ def describe_user(ctx: click.Context):
         RenderField(label='Email', path='$.email'),
         RenderField(label='PRAX API Token', path='$.token'),
         RenderField(label='Current Org.', path='$.current_org'),
-        RenderField(label='Organizations', path='$.orgs.*', sep='\n'),
+        #RenderField(label='All Orgs.', path='$.orgs.*', sep='\n'),
+        RenderField(label='Deployable Orgs.', path='$.deployable_orgs.*', sep='\n'),
+        RenderField(label='Admin Orgs.', path='$.admin_orgs.*', sep='\n'),
+        RenderField(label='Deployed Projects', path='$.projects.*', sep='\n'),
         RenderField(
             label='User Resources', 
             path='$.resources.*', 
@@ -39,10 +42,16 @@ def describe_user(ctx: click.Context):
 @create.command(name='user-secret', help='Create a new PRAX User Secret (API Token)')
 @click.pass_context
 @click.argument('name', type=str)
-@click.option('--org', help='Organization name', default=None, type=str)
-@click.option('--data','-d', help='Secret data', type=str, multiple=True)
+@click.option('--org', help='Organization name. Defaults to your current Org.', default=None, type=str)
+@click.option('--description', help='Secret description', type=str, default=None)
+@click.option('--data','-d', help='Secret data key=value pairs', type=str, multiple=True)
 @login_required
-def create_user_secret(ctx: click.Context, name: str, org: str|None, data: list[str]):
+def create_user_secret(ctx: click.Context, 
+                       name: str, 
+                       org: str|None,
+                       description: str|None,
+                       data: list[str],
+):
     client = PRAXClient(ctx)
     users = client.get_users()
     if isinstance(users, models.ErrorResponse):
@@ -62,14 +71,17 @@ def create_user_secret(ctx: click.Context, name: str, org: str|None, data: list[
         if not view:
             click.echo("User secret creation aborted!")
             return 0
-    
-    secret_data = {s[0]: s[1] for s in [d.split('=') for d in data]}
+    try:
+        secret_data = {s[0]: s[1] for s in [d.split('=') for d in data]}
+    except ValueError:
+        click.echo(f"{err} Error parsing secret data. Please provide key=value pairs.")
+        return 1
 
-    secret = client.create_or_update_user_secret(name, org, )
+    secret = client.create_or_update_user_secret(name, current_org, secret_data, description)
 
     if isinstance(secret, models.ErrorResponse):
         click.echo(f"{err} Error creating user secret:")
         echoerr(secret)
         return 1
     else:
-        click.echo(f"User secret created: {secret['token']}")
+        click.echo(f" {chk} User-secret created successfully at Org. '{current_org}': {secret.name}")

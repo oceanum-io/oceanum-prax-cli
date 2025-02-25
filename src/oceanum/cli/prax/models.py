@@ -59,7 +59,10 @@ class Token(RootModel[str]):
 
 class UserSchema(BaseModel):
     orgs: list[str] = Field(default=[], title='Orgs')
+    deployable_orgs: list[str] = Field(default=[], title='Deployable Orgs')
+    admin_orgs: list[str] = Field(default=[], title='Admin Orgs')
     current_org: Optional[str] = Field(default=None, title='Current Org')
+    projects: list[str] = Field(default=[], title='Projects')
     resources: list[UserResourceSchema] = Field(..., title='Resources')
     username: str = Field(
         ...,

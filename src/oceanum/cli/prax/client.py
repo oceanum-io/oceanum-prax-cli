@@ -354,12 +354,16 @@ class PRAXClient:
             return [models.UserSchema(**user) for user in response.json()]
         return errs
     
-    def create_or_update_user_secret(self, secret_name: str, org: str, secret_data: dict) -> models.UserResourceSchema | models.ErrorResponse:
+    def create_or_update_user_secret(self, secret_name: str, org: str, secret_data: dict, description: str|None = None) -> models.UserSchema | models.ErrorResponse:
         response, errs = self._post(
-            'secrets', 
-            json={'name': secret_name, 'org': org, 'data': secret_data}
+            f'users/{org}/resources/secrets', 
+            json={
+                'name': secret_name, 
+                'description': description,
+                'data': secret_data
+            }
         )
-        return errs if errs else models.UserResourceSchema(**response.json())
+        return errs if errs else models.SecretSpec(**response.json())
 
     def list_projects(self, **filters) -> list[models.ProjectSchema] | models.ErrorResponse:
         response, errs = self._get('projects', params=filters or None)
