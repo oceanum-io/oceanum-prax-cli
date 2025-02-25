@@ -12,10 +12,6 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel, SecretStr
 
 
-class OrgSchema(BaseModel):
-    name: str = Field(..., max_length=150, title='Name')
-
-
 class SecretData(RootModel[Optional[dict[str, SecretStr]]]):
     root: Optional[dict[str, SecretStr]] = None
 
@@ -41,6 +37,7 @@ class SecretSpec(BaseModel):
 
 class UserResourceSchema(BaseModel):
     spec: SecretSpec
+    org: str = Field(..., title='Org')
     name: str = Field(..., max_length=255, title='Name')
     resource_type: str = Field(..., max_length=20, title='Resource Type')
     created_at: datetime = Field(..., title='Created At')
@@ -61,7 +58,8 @@ class Token(RootModel[str]):
 
 
 class UserSchema(BaseModel):
-    current_org: Optional[OrgSchema] = None
+    orgs: list[str] = Field(default=[], title='Orgs')
+    current_org: Optional[str] = Field(default=None, title='Current Org')
     resources: list[UserResourceSchema] = Field(..., title='Resources')
     username: str = Field(
         ...,
@@ -112,6 +110,10 @@ class RouteFilterSchema(BaseModel):
     )
 
 
+class ObjectRef(RootModel[str]):
+    root: str = Field(..., max_length=255, title='Object Ref')
+
+
 class RouteSchema(BaseModel):
     org: str = Field(..., title='Org')
     stage: str = Field(..., title='Stage')
@@ -121,6 +123,7 @@ class RouteSchema(BaseModel):
     custom_domains: list[str] = Field(default=[], title='Custom Domains')
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
+    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1342,6 +1345,7 @@ class StagedRunSchema(BaseModel):
     project: str = Field(..., title='Project')
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
+    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1361,6 +1365,7 @@ class TaskSchema(BaseModel):
     )
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
+    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1462,6 +1467,7 @@ class TaskRunsSchema(BaseModel):
     )
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
+    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1489,6 +1495,7 @@ class PipelineRunsSchema(BaseModel):
     )
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
+    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1519,6 +1526,7 @@ class BuildRunsSchema(BaseModel):
     )
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
+    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1888,6 +1896,7 @@ class BuildSchema(BaseModel):
     )
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
+    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -1910,6 +1919,7 @@ class PipelineSchema(BaseModel):
     )
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
+    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -2751,7 +2761,7 @@ class ProjectResourcesSpec(BaseModel):
     builds: list[BuildSpec] = Field(
         default=[], description='List of project builds', title='Project Builds'
     )
-    tasks: list[TaskSpec] = Field(
+    tasks: list[Union[TaskSpec, PipelineDefaults]] = Field(
         default=[], description='List of project tasks', title='Project Tasks'
     )
     pipelines: list[PipelineSpec] = Field(

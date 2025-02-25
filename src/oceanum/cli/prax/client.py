@@ -353,6 +353,13 @@ class PRAXClient:
         if not errs:
             return [models.UserSchema(**user) for user in response.json()]
         return errs
+    
+    def create_or_update_user_secret(self, secret_name: str, org: str, secret_data: dict) -> models.UserResourceSchema | models.ErrorResponse:
+        response, errs = self._post(
+            'secrets', 
+            json={'name': secret_name, 'org': org, 'data': secret_data}
+        )
+        return errs if errs else models.UserResourceSchema(**response.json())
 
     def list_projects(self, **filters) -> list[models.ProjectSchema] | models.ErrorResponse:
         response, errs = self._get('projects', params=filters or None)
