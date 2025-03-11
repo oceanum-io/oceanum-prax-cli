@@ -111,6 +111,9 @@ class RouteFilterSchema(BaseModel):
     publish_app: Optional[bool] = Field(
         default=None, description='Filter by publish app status', title='Publish App'
     )
+    notebook: Optional[bool] = Field(
+        default=False, description='Filter by notebook name', title='Notebook'
+    )
 
 
 class ObjectRef(RootModel[str]):
@@ -154,6 +157,25 @@ class RouteSchema(BaseModel):
         description='The last known Route Status',
         max_length=20,
         title='Status',
+    )
+
+
+class RoutePatchSchema(BaseModel):
+    display_name: str = Field(
+        ..., description='The display name of the route', title='Display Name'
+    )
+    description: str = Field(
+        ..., description='The description of the route', title='Description'
+    )
+    publish_app: bool = Field(
+        default=False,
+        description='Publish the App or Service route in the Oceanum.io Apps Dashboard',
+        title='Publish App or Service',
+    )
+    open_access: bool = Field(
+        default=False,
+        description='The access to the Route is open-access, no authentication required',
+        title='Open Access',
     )
 
 
@@ -1033,7 +1055,7 @@ class DisplayName(RootModel[str]):
         ...,
         description="The Service's Route human readable name to be displayed in Oceanum.io Apps Dashboard",
         max_length=256,
-        title='Display Name',
+        title='Display Name (DEPRECATED)',
     )
 
 
@@ -1042,53 +1064,7 @@ class Description(RootModel[str]):
         ...,
         description="The Service's Route Description to be displayed in Oceanum.io Apps Dashboard, if not provided fallback to Service's Description",
         max_length=255,
-        title='Description',
-    )
-
-
-class Tier(Enum):
-    """
-    The Service's Route Tier, default to `frontend`. Options are `frontend` or `backend`
-    """
-
-    backend = 'backend'
-    frontend = 'frontend'
-
-
-class ServiceRouteSpec(BaseModel):
-    display_name: Optional[DisplayName] = Field(
-        default=None,
-        alias='displayName',
-        description="The Service's Route human readable name to be displayed in Oceanum.io Apps Dashboard",
-        title='Display Name',
-    )
-    description: Optional[Description] = Field(
-        default=None,
-        description="The Service's Route Description to be displayed in Oceanum.io Apps Dashboard, if not provided fallback to Service's Description",
-        title='Description',
-    )
-    publish_app: bool = Field(
-        default=False,
-        alias='publishApp',
-        description="Publish the Service's Route in Oceanum.io Dashboard. Default to `false`",
-        title='Publish',
-    )
-    tier: Optional[Tier] = Field(
-        default='frontend',
-        description="The Service's Route Tier, default to `frontend`. Options are `frontend` or `backend`",
-        title='Tier',
-    )
-    custom_domains: Optional[list[CustomDomainSpec]] = Field(
-        default=None,
-        alias='customDomains',
-        description="The Service's Route Domains",
-        title='Custom Domains',
-    )
-    open_access: bool = Field(
-        default=False,
-        alias='openAccess',
-        description="Open Access to the Service's Route, no Authentication or permission required",
-        title='Open Access',
+        title='Description (DEPRECATED)',
     )
 
 
@@ -1191,17 +1167,6 @@ class StageBuildStatus(BaseModel):
     )
 
 
-class Pipeline(RootModel[str]):
-    root: str = Field(
-        ...,
-        description='The Pipeline reference name from the list of Pipeline resources',
-        max_length=32,
-        min_length=3,
-        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
-        title='Pipeline Reference',
-    )
-
-
 class Task(RootModel[str]):
     root: str = Field(
         ...,
@@ -1210,6 +1175,17 @@ class Task(RootModel[str]):
         min_length=3,
         pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
         title='Task Reference',
+    )
+
+
+class Pipeline(RootModel[str]):
+    root: str = Field(
+        ...,
+        description='The Pipeline reference name from the list of Pipeline resources',
+        max_length=32,
+        min_length=3,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
+        title='Pipeline Reference',
     )
 
 
@@ -1222,6 +1198,10 @@ class Service(RootModel[str]):
         pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
         title='Service Reference',
     )
+
+
+class Notebook(Service):
+    pass
 
 
 class Status(Enum):
@@ -1340,6 +1320,11 @@ class TaskParameter(BaseModel):
 
 class Timeout2(Timeout):
     pass
+
+
+class TierOptions(Enum):
+    frontend = 'frontend'
+    backend = 'backend'
 
 
 class StagedRunSchema(BaseModel):
@@ -1663,6 +1648,21 @@ class EnvVarValue(BaseModel):
     )
 
 
+class PersistentVolumeSource(BaseModel):
+    """
+    PersistentVolumeSource is the specification of a persistent volume. The volume will persist across restarts of the container. Only 1 container at a time can use the volume, so no autoscaling or parallelism supported. Removing the container from deployment Stage or changing the name will delete PersistentVolume resource.
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    size_limit: Optional[Quantity] = Field(
+        default=None,
+        alias='sizeLimit',
+        description='sizeLimit is the total amount of persistent storage required for this volume.',
+    )
+
+
 class PipelineArguments(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -1807,6 +1807,43 @@ class ProjectedVolumeMount(BaseModel):
     )
 
 
+class ServiceRouteSpec(BaseModel):
+    display_name: Optional[DisplayName] = Field(
+        default=None,
+        alias='displayName',
+        description="The Service's Route human readable name to be displayed in Oceanum.io Apps Dashboard",
+        title='Display Name (DEPRECATED)',
+    )
+    description: Optional[Description] = Field(
+        default=None,
+        description="The Service's Route Description to be displayed in Oceanum.io Apps Dashboard, if not provided fallback to Service's Description",
+        title='Description (DEPRECATED)',
+    )
+    publish_app: bool = Field(
+        default=False,
+        alias='publishApp',
+        description="Publish the Service's Route in Oceanum.io Dashboard. Default to `false`",
+        title='Publish App (DEPRECATED)',
+    )
+    tier: Optional[TierOptions] = Field(
+        default='frontend',
+        description="The Service's Route Tier, default to `frontend`. Options are `frontend` or `backend`",
+        title='Tier',
+    )
+    custom_domains: Optional[list[CustomDomainSpec]] = Field(
+        default=None,
+        alias='customDomains',
+        description="The Service's Route Domains",
+        title='Custom Domains',
+    )
+    open_access: bool = Field(
+        default=False,
+        alias='openAccess',
+        description="Open Access to the Service's Route, no Authentication or permission required",
+        title='Open Access (DEPRECATED)',
+    )
+
+
 class StageStatusSpec(BaseModel):
     build_status: Optional[list[StageBuildStatus]] = Field(
         default=None,
@@ -1867,6 +1904,11 @@ class Volume(BaseModel):
         default=None,
         alias='emptyDir',
         description="emptyDir represents a temporary directory that shares a pod's lifetime. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir",
+    )
+    persistent_volume: Optional[PersistentVolumeSource] = Field(
+        default=None,
+        alias='persistentVolume',
+        description='persistentVolume represents a persistent volume that is attached to the host and mounted into the pod in the same way that a local volume would be. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes',
     )
     path: Optional[str] = Field(
         default=None,
@@ -2113,6 +2155,89 @@ class ContainerCommandRequiredSpec(BaseModel):
         ...,
         description='The container command to be executed, accepts environment variables with sintax $(VAR_NAME)',
         title='Container Command',
+    )
+
+
+class NotebookSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: str = Field(
+        default='main',
+        description='The container name',
+        max_length=32,
+        min_length=3,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
+        title='Container Name',
+    )
+    description: Optional[str] = Field(default=None, title='Resource Description')
+    resources: Optional[ContainerResources] = Field(
+        default=None,
+        description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
+        title='Container Resources',
+    )
+    env: Optional[list[EnvVarValue]] = Field(
+        default=None, title='Container Environment Variables'
+    )
+    mounts: Optional[list[ProjectedVolumeMount]] = Field(
+        default=None,
+        description='List of existing ConfigMaps or Secrets references to mount in the container',
+        title='Container Mounts',
+    )
+    image: Union[DockerImageURL, ContainerImageSpec] = Field(
+        default='quay.io/jupyter/minimal-notebook:latest',
+        description='A Public Image Repository URL, a Build reference or a Image resource reference',
+        title='Notebook Image',
+    )
+    sidecars: Optional[list[ContainerCommandRequiredSpec]] = Field(
+        default=None,
+        description='List of arbitrary sidecar containers to start with the main container',
+        title='Sidecar Containers',
+    )
+    volumes: Optional[list[Volume]] = Field(
+        default=None,
+        description='Volumes is a list of volumes that can be mounted in Tasks.',
+        title='Volumes',
+    )
+    command: Optional[str] = Field(
+        default='/bin/bash -c \'export PATH="$PATH:/home/jovyan/work/.extensions/bin" && start-notebook.py --ip=0.0.0.0 --port=8888 --no-browser --NotebookApp.token=""\'',
+        description='The command to run in the container',
+        title='Command',
+    )
+    service_port: int = Field(
+        default=8888,
+        alias='servicePort',
+        description='The ServicePort',
+        ge=0,
+        le=65535,
+        title='Service Port',
+    )
+    health_check: ServiceHealthCheck = Field(
+        default_factory=lambda: ServiceHealthCheck.model_validate(
+            {'path': '/', 'port': 8888, 'headers': None}
+        ),
+        alias='healthCheck',
+        description='The Service Health Check parameters',
+        title='Service Health Check',
+    )
+    route: ServiceRouteSpec = Field(
+        default_factory=lambda: ServiceRouteSpec.model_validate(
+            {
+                'displayName': None,
+                'description': None,
+                'publishApp': False,
+                'tier': 'frontend',
+                'customDomains': [],
+                'openAccess': False,
+            }
+        ),
+        description="The Service's Route",
+        title='Service Route',
+    )
+    autoscale: Optional[ServiceAutoscaleSpec] = Field(
+        default=None,
+        description="The Service's Autoscale parameters. ",
+        title='Service Autoscale',
     )
 
 
@@ -2691,20 +2816,25 @@ class PipelineSpec(BaseModel):
 
 
 class StageResourcesSpec(BaseModel):
-    pipelines: Optional[Union[list[Pipeline], list[PipelineRefParams]]] = Field(
-        default=None,
-        description='Pipelines to be deployed in this deployment stage',
-        title='Stage Pipelines',
-    )
     tasks: Optional[Union[list[Task], list[TaskRefParams]]] = Field(
         default=None,
         description='List of standalone Tasks to be executed in this deployment stage',
         title='Stage Tasks',
     )
+    pipelines: Optional[Union[list[Pipeline], list[PipelineRefParams]]] = Field(
+        default=None,
+        description='Pipelines to be deployed in this deployment stage',
+        title='Stage Pipelines',
+    )
     services: Optional[Union[list[Service], list[ServiceRefParams]]] = Field(
         default=None,
         description='List of Services to be deployed in this deployment stage',
         title='Stage Services',
+    )
+    notebooks: Optional[Union[list[Notebook], list[ServiceRefParams]]] = Field(
+        default=None,
+        description='List of Notebooks to be deployed in this deployment stage',
+        title='Stage Notebooks',
     )
 
 
@@ -2772,6 +2902,9 @@ class ProjectResourcesSpec(BaseModel):
     )
     services: list[ServiceSpec] = Field(
         default=[], description='List of project services', title='Project Services'
+    )
+    notebooks: list[NotebookSpec] = Field(
+        default=[], description='List of project notebooks', title='Project Notebooks'
     )
     stages: list[StageSpec] = Field(
         default=[],

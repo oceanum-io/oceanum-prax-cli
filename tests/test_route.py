@@ -21,10 +21,20 @@ route_schema = models.RouteSchema(
     project='test-project',
     stage='test-stage',
     status='active',
-    url='http://test-route'
+    url='http://test-route',
 )
 
 class TestAllowProject(TestCase):
+
+    def test_list_notebooks(self):
+        response = MagicMock(status_code=200)
+        response.json.return_value = [route_schema.model_dump(by_alias=True, exclude_none=True)]
+        with patch('requests.request', return_value=response) as mock_request:
+            result = runner.invoke(main, ['prax', 'list', 'notebooks'])
+            assert result.exit_code == 0
+            assert 'test-route' in result.output
+            assert mock_request.call_count == 1
+    
     def test_allow_help(self):
         result = runner.invoke(main, ['prax', 'allow', 'project', '--help'])
         assert result.exit_code == 0

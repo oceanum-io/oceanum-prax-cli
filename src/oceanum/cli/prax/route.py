@@ -40,7 +40,7 @@ def list_routes(ctx: click.Context, output: str, open_access: bool, **filters):
 
     client = PRAXClient(ctx)
     fields = [
-        RenderField(label='Name', path='$.name'),
+        RenderField(label='Route Name', path='$.name'),
         RenderField(label='Project', path='$.project'),
         RenderField(label='Stage', path='$.stage'),
         RenderField(label='Status', path='$.status', mod=_frs),
@@ -57,6 +57,22 @@ def list_routes(ctx: click.Context, output: str, open_access: bool, **filters):
         sys.exit(1)
     else:
         click.echo(Renderer(data=routes, fields=fields).render(output_format=output))
+
+@list_group.command(name='notebooks', help='List PRAX Notebooks')
+@click.pass_context
+@click.option('--search', help='Search by notebook name, project_name or project description',
+              default=None, type=str)
+@click.option('--org', help='Organization name', default=None, type=str)
+@click.option('--user', help='Notebook owner email', default=None, type=str)
+@click.option('--status', help='Notebook status', default=None, type=str)
+@click.option('--project', help='Project name', default=None, type=str)
+@click.option('--stage', help='Stage name', default=None, type=str)
+@click.option('--open-access', help='Show only open-access notebooks or private notebooks with False', default=None, type=bool, is_flag=True)
+@output_format_option
+@login_required
+def list_notebooks(ctx: click.Context, output: str, open_access: bool, **filters):
+    filters.update({'notebook': True})
+    ctx.invoke(list_routes, output=output, open_access=open_access, **filters)
 
 @describe.command(name='route', help='Describe a PRAX Service or App Route')
 @click.pass_context
