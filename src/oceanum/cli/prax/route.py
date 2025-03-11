@@ -28,15 +28,19 @@ def update_route():
 @click.option('--stage', help='Stage name', default=None, type=str)
 @click.option('--open-access', help='Show only open-access routes or private routes with False', default=None, type=bool, is_flag=True)
 @click.option('--tier', help="Select only 'frontend' or 'backend' routes", default=None, type=click.Choice(['backend','frontend']))
+@click.option('--current-org', help='Filter routes by the current organization in Oceanum.io', default=False, type=bool, is_flag=True)
 @output_format_option
 @login_required
-def list_routes(ctx: click.Context, output: str, open_access: bool, **filters):
+def list_routes(ctx: click.Context, output: str, open_access: bool, current_org: bool, **filters):
     if open_access:
         filters.update({'open': True})
     elif open_access is None:
         pass
     else:
         filters.update({'open': False})
+
+    if current_org:
+        filters.update({'active_org': True})
 
     client = PRAXClient(ctx)
     fields = [
