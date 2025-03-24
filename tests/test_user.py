@@ -24,8 +24,18 @@ class TestUser(TestCase):
             'current_org': 'test-org',
             'deployable_orgs': ['test-org'],
             'admin_orgs': ['test-org'],
+            'orgs': [{
+                'name': 'test-org',
+                'projects': ['test-project'],
+                'tier': {
+                    'name': 'test-tier',
+                },
+                'usage': {
+                    'name': 'usage',
+                },
+                'resources': [],
+            }],
             'projects': [],
-            'resources': [],
         }]
         create_response = MagicMock(status_code=201)
         create_response.json.return_value = {
@@ -39,7 +49,6 @@ class TestUser(TestCase):
                 result = runner.invoke(main, [
                     'prax', 'create', 'user-secret', 'test-secret', '--data', 'key=value'
                 ])
-                print(result)
                 assert result.exit_code == 0
                 assert 'test-secret' in result.output
 

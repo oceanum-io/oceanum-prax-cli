@@ -354,7 +354,7 @@ class PRAXClient:
             return [models.UserSchema(**user) for user in response.json()]
         return errs
     
-    def create_or_update_user_secret(self, secret_name: str, org: str, secret_data: dict, description: str|None = None) -> models.UserSchema | models.ErrorResponse:
+    def create_or_update_user_secret(self, secret_name: str, org: str, secret_data: dict, description: str|None = None) -> models.SecretSpec | models.ErrorResponse:
         response, errs = self._post(
             f'users/{org}/resources/secrets', 
             json={
