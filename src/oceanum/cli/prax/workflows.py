@@ -57,9 +57,7 @@ LIST_FIELDS = [
 @login_required
 def list_pipelines(ctx: click.Context, output: str, **filters):
     client = PRAXClient(ctx)
-    pipelines =  client.list_pipelines(**{
-        k: v for k, v in filters.items() if v is not None
-    })
+    pipelines =  client.list_pipelines(**filters)
     def format_schedule(x: list) -> list[str]:
         if len(x) == 2 and x[1] is not None:
             icon = spin if not x[0] else err
@@ -99,9 +97,7 @@ def list_pipelines(ctx: click.Context, output: str, **filters):
 @login_required
 def list_tasks(ctx: click.Context, output: str, **filters):
     client = PRAXClient(ctx)
-    tasks =  client.list_tasks(**{
-        k: v for k, v in filters.items() if v is not None
-    })
+    tasks =  client.list_tasks(**filters)
     if not tasks:
         click.echo('No tasks found!')
     elif isinstance(tasks, models.ErrorResponse):
@@ -491,7 +487,7 @@ def get_build_logs(ctx: click.Context, name: str, lines: int, follow: bool, **fi
 @login_required
 def describe_pipeline(ctx: click.Context, name: str, **filters):
     client = PRAXClient(ctx)
-    pipeline = client.get_pipeline(name)
+    pipeline = client.get_pipeline(name, **filters)
     pipeline_fields = [
         RenderField(label='Pipeline Name', path='$.name'),
         RenderField(label='Description', path='$.description'),
@@ -559,13 +555,13 @@ def describe_pipeline(ctx: click.Context, name: str, **filters):
 @login_required
 def submit_pipeline(ctx: click.Context, name: str, parameter: list[str]|None, **filters):
     client = PRAXClient(ctx)
-    pipeline = client.get_pipeline(name)
+    pipeline = client.get_pipeline(name, **filters)
     if isinstance(pipeline, models.ErrorResponse):
         click.echo(f"{err} Error fetching pipeline:")
         echoerr(pipeline)
         sys.exit(1)
     else:
-        resp = client.submit_pipeline(name)
+        resp = client.submit_pipeline(name, parse_parameters(parameter), **filters)
         if isinstance(resp, models.ErrorResponse):
             click.echo(f"{err} Error submitting pipeline:")
             echoerr(resp)
@@ -583,7 +579,7 @@ def submit_pipeline(ctx: click.Context, name: str, parameter: list[str]|None, **
 @login_required
 def terminate_pipeline(ctx: click.Context, name: str, **filters):
     client = PRAXClient(ctx)
-    pipeline = client.get_pipeline_run(name)
+    pipeline = client.get_pipeline_run(name, **filters)
     if isinstance(pipeline, models.ErrorResponse):
         click.echo(f"{err} Error fetching pipeline:")
         echoerr(pipeline)
@@ -608,7 +604,7 @@ def terminate_pipeline(ctx: click.Context, name: str, **filters):
 @login_required
 def retry_pipeline(ctx: click.Context, name: str, **filters):
     client = PRAXClient(ctx)
-    pipeline = client.get_pipeline_run(name)
+    pipeline = client.get_pipeline_run(name, **filters)
     if isinstance(pipeline, models.ErrorResponse):
         click.echo(f"{err} Error fetching pipeline:")
         echoerr(pipeline)
@@ -645,7 +641,7 @@ def get_pipeline_logs(ctx: click.Context, name: str, lines: int, follow: bool, *
 
     latest_run = pipeline.last_run
     click.echo(f"Fetching logs for pipeline run: {latest_run.name} ...")
-    for line in client.get_pipeline_run_logs(latest_run.name, lines, follow):
+    for line in client.get_pipeline_run_logs(latest_run.name, lines, follow, **filters):
         if isinstance(line, models.ErrorResponse):
             click.echo(f"{err} Error fetching logs:")
             echoerr(line)

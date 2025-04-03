@@ -105,7 +105,8 @@ class PRAXClient:
 
     def _request(self, 
         method: Literal['GET', 'POST', 'PUT','DELETE','PATCH'], 
-        endpoint, **kwargs
+        endpoint,
+        **kwargs
     ) -> tuple[requests.Response, models.ErrorResponse|None]:
         assert self.service is not None, 'Service URL is required'
         if self.token is not None:
