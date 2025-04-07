@@ -58,6 +58,18 @@ def stage_status_color(stage: dict) -> str:
         return click.style(stage['name'], fg='cyan')
     else:
         return stage['name']
+    
+
+def source_status_color(status: str) -> str:
+    if status == 'connected':
+        return click.style(status.upper(), fg='green')
+    elif status == 'disconnected':
+        return click.style(status.upper(), fg='red')
+    elif status == 'pending':
+        return click.style(status.upper(), fg='yellow')
+    elif status == 'forbidden':
+        return click.style(status.upper(), fg='red')
+    return click.style(status.upper(), fg='white')
 
 
 def echoerr(error: ErrorResponse):

@@ -29,6 +29,7 @@ with good_specfile.open() as f:
                     tasks=[],
                     builds=[],
                     routes=[],
+                    sources=[],
                 )
             )
         ],
@@ -268,6 +269,19 @@ class TestDescribeProject(TestCase):
                         name='test-stage',
                         pipelines=[],
                         tasks=[],
+                        sources=[
+                            models.SourceSchema(
+                                name='test-source',
+                                org='test-org',
+                                created_at=datetime.now().replace(tzinfo=timezone.utc),
+                                updated_at=datetime.now().replace(tzinfo=timezone.utc),
+                                project='test-project',
+                                stage='test-stage',
+                                status='active',
+                                source_type='github',
+                                repository='test-repo',
+                            )
+                        ],
                         builds=[
                             models.BuildSchema(
                                 org='test-org',
@@ -369,3 +383,98 @@ class TestAllowProject(TestCase):
                 print(result.output)
                 assert result.exit_code == 0
                 assert 'success' in result.output
+
+timestamp = datetime.now().replace(tzinfo=timezone.utc).isoformat()
+
+class TestListSources(TestCase):
+    def test_list_sources_help(self):
+        result = runner.invoke(main, ['prax', 'list', 'sources', '--help'])
+        assert result.exit_code == 0
+
+    def test_list_sources_success(self):
+        sources_response = [{
+            "name": "test-source",
+            "project": "test-project",
+            "stage": "dev",
+            "org": "test-org",
+            "created_at": timestamp,
+            "updated_at": timestamp,
+            "source_type": "git",
+            "repository": "https://github.com/test/repo",
+            "status": "active"
+        }]
+
+        with patch('oceanum.cli.prax.client.PRAXClient.list_sources', 
+                  return_value=sources_response) as mock_list:
+            result = runner.invoke(main, ['prax', 'list', 'sources'])
+            assert result.exit_code == 0
+            assert 'test-source' in result.output
+            mock_list.assert_called_once_with(
+                search=None,
+                project=None,
+                org=None,
+                user=None,
+                status=None
+            )
+
+    def test_list_sources_with_filters(self):
+        sources_response = [{
+            "name": "test-source",
+            "project": "test-project",
+            "stage": "dev",
+            "org": "test-org",
+            "created_at": timestamp,
+            "updated_at": timestamp,
+            "source_type": "git",
+            "repository": "https://github.com/test/repo",
+            "status": "active"
+        }]
+
+        with patch('oceanum.cli.prax.client.PRAXClient.list_sources', 
+                  return_value=sources_response) as mock_list:
+            result = runner.invoke(main, [
+                'prax', 'list', 'sources',
+                '--project', 'test-project',
+                '--org', 'test-org',
+                '--user', 'test@user.com',
+                '--status', 'active',
+                '--search', 'test'
+            ])
+            assert result.exit_code == 0
+            assert 'test-source' in result.output
+            mock_list.assert_called_once_with(
+                search='test',
+                project='test-project',
+                org='test-org',
+                user='test@user.com',
+                status='active'
+            )
+
+    def test_list_sources_empty(self):
+        with patch('oceanum.cli.prax.client.PRAXClient.list_sources', 
+                  return_value=[]) as mock_list:
+            result = runner.invoke(main, ['prax', 'list', 'sources'])
+            assert result.exit_code == 1
+            assert 'No sources found!' in result.output
+
+    def test_list_sources_error(self):
+        error_response = models.ErrorResponse(
+            status_code=500,
+            detail="Internal server error"
+        )
+        with patch('oceanum.cli.prax.client.PRAXClient.list_sources', 
+                  return_value=error_response) as mock_list:
+            result = runner.invoke(main, ['prax', 'list', 'sources'])
+            assert result.exit_code == 1
+            assert 'Could not list sources!' in result.output
+
+    def test_list_sources_authentication(self):
+        response = MagicMock(status_code=401)
+        response.json.return_value = {'detail': 'Not authenticated'}
+        response.raise_for_status.side_effect = requests.exceptions.HTTPError('401')
+        
+        with patch('requests.request', return_value=response):
+            result = runner.invoke(main, ['prax', 'list', 'sources'])
+            assert result.exit_code == 1
+            assert 'Not authenticated' in result.output
+

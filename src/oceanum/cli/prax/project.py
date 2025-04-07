@@ -15,6 +15,7 @@ from .utils import (
     echoerr, merge_secrets,
     project_status_color as psc,
     stage_status_color as ssc,
+    source_status_color as sosc,
 )
 
 name_argument = click.argument('name', type=str)
@@ -397,3 +398,43 @@ def allow_project(ctx: click.Context, project_name: str, org: str, group: list[s
         click.echo(f" {err} Failed to grant permission to project!")
         echoerr(response)
         sys.exit(1)
+
+@list_group.command(name='sources', help='List PRAX Project Sources')
+@click.pass_context
+@project_name_option
+@project_org_option
+@project_user_option
+@click.option('--search', help='Search by project name or description', default=None, type=str)
+@click.option('--status', help='filter by Project status', default=None, type=str)
+def list_sources(ctx: click.Context, project: str|None, org: str|None, 
+                 user: str|None, search: str|None, status: str|None):
+    click.echo(f' {spin} Listing sources...')
+    client = PRAXClient(ctx)
+    filters = {
+        'search': search,
+        'project': project,
+        'org': org,
+        'user': user,
+        'status': status,
+    }
+    sources = client.list_sources(**filters)
+
+    fields = [
+        RenderField(label='Name', path='$.name'),
+        RenderField(label='Org.', path='$.org'),
+        RenderField(label='Project', path='$project'),
+        RenderField(label='Stage', path='$.stage'),
+        RenderField(label='Type', path='$.source_type', mod=lambda x: x.title()),
+        RenderField(label='Repository', path='$.repository'),
+        RenderField(label='Status', path='$.status', mod=sosc),
+    ]
+        
+    if not sources:
+        click.echo(f' {wrn} No sources found!')
+        sys.exit(1)
+    elif isinstance(sources, models.ErrorResponse):
+        click.echo(f" {err} Could not list sources!")
+        echoerr(sources)
+        sys.exit(1)
+    else:
+        click.echo(Renderer(data=sources, fields=fields).render(output_format='table'))

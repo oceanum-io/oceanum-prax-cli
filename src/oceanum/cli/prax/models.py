@@ -1386,6 +1386,29 @@ class TierOptions(Enum):
     backend = 'backend'
 
 
+class SourceType(RootModel[str]):
+    root: str = Field(..., max_length=255, title='Source Type')
+
+
+class Repository(RootModel[str]):
+    root: str = Field(..., max_length=255, title='Repository')
+
+
+class SourceSchema(BaseModel):
+    org: str = Field(..., title='Org')
+    stage: str = Field(..., title='Stage')
+    project: str = Field(..., title='Project')
+    name: str = Field(..., max_length=255, title='Name')
+    description: Optional[str] = Field(default=None, title='Description')
+    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
+    created_at: datetime = Field(..., title='Created At')
+    updated_at: datetime = Field(..., title='Updated At')
+    details: Optional[dict[str, Any]] = Field(default=None, title='Details')
+    source_type: Optional[SourceType] = Field(default=None, title='Source Type')
+    repository: Optional[Repository] = Field(default=None, title='Repository')
+    status: str = Field(default='pending', max_length=20, title='Status')
+
+
 class StagedRunSchema(BaseModel):
     org: str = Field(..., title='Org')
     stage: str = Field(..., title='Stage')
@@ -2086,6 +2109,7 @@ class StageResourcesSchema(BaseModel):
     builds: list[BuildSchema] = Field(..., title='Builds')
     pipelines: list[PipelineSchema] = Field(..., title='Pipelines')
     tasks: list[TaskSchema] = Field(..., title='Tasks')
+    sources: list[SourceSchema] = Field(..., title='Sources')
     name: str = Field(..., max_length=255, title='Name')
     spec_dict: Optional[dict[str, Any]] = Field(
         default=None, description='Staged resources spec dict', title='Spec Dict'

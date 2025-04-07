@@ -390,6 +390,13 @@ class PRAXClient:
         response, errs = self._get(f'projects/{project_name}', params=filters or None)
         return errs if errs else models.ProjectSchema(**response.json())
     
+    def list_sources(self, **filters) -> list[models.SourceSchema] | models.ErrorResponse:
+        response, errs = self._get('sources', params=filters or None)
+        if not errs:
+            return [models.SourceSchema(**source) for source in response.json()]
+        else:
+            return errs
+    
     def list_tasks(self, **filters) -> list[models.TaskSchema] | models.ErrorResponse:
         response, errs = self._get('tasks', params=filters or None)
         if not errs:
