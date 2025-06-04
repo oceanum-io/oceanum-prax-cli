@@ -140,7 +140,7 @@ def deploy_project(
 
     click.echo()
     click.echo(f'  Project Name: {project_spec.name}')
-    click.echo(f"  Organization: {getattr(user_org, 'root', user_org)}")
+    click.echo(f"  Organization: {user_org}")
     click.echo(f'  Owner:        {user_email}')
     click.echo()
     click.echo('Safe to Ctrl+C at any time...')

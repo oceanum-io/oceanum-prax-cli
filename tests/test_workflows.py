@@ -55,6 +55,7 @@ class TestPipelineCommands:
     def test_list_pipelines_success(self, runner, mock_client, mock_response):
         # Setup mock response
         mock_response.json.return_value = [{
+            "id": "pipeline-123",
             "name": "test-pipeline",
             "project": "test-project",
             "stage": "dev",
@@ -90,6 +91,7 @@ class TestPipelineCommands:
 
     def test_describe_pipeline_success(self, runner, mock_client, mock_response):
         mock_response.json.return_value = {
+            "id": "pipeline-123",
             "name": "test-pipeline",
             "project": "test-project",
             "stage": "dev",
@@ -115,6 +117,7 @@ class TestPipelineCommands:
 
     def test_submit_pipeline_success(self, runner, mock_client, mock_response):
         mock_response.json.return_value = {
+            "id": "pipeline-123",
             "name": "test-pipeline",
             "project": "test-project",
             "stage": "dev",
@@ -122,6 +125,7 @@ class TestPipelineCommands:
             "created_at": timestamp,
             "updated_at": timestamp,
             "last_run": {
+                "id": "run-123",
                 "name": "run-123",
                 "project": "test-project",
                 "stage": "dev",
@@ -152,6 +156,7 @@ class TestPipelineCommands:
 
     def test_terminate_pipeline_success(self, runner, mock_client, mock_response):
         mock_response.json.return_value = {
+            "id": "pipeline-123",
             "name": "test-pipeline",
             "project": "test-project",
             "stage": "dev",
@@ -168,6 +173,7 @@ class TestPipelineCommands:
 
     def test_retry_pipeline_success(self, runner, mock_client, mock_response):
         mock_response.json.return_value = {
+            "id": "pipeline-123",
             "name": "test-pipeline",
             "project": "test-project",
             "stage": "dev",
@@ -184,6 +190,7 @@ class TestPipelineCommands:
 
     def test_get_pipeline_logs(self, runner, mock_client, mock_response):
         pipeline_get_response = models.PipelineSchema(**{
+            "id": "pipeline-123",
             "name": "test-pipeline",
             "project": "test-project",
             "stage": "dev",
@@ -191,6 +198,7 @@ class TestPipelineCommands:
             "created_at": timestamp,
             "updated_at": timestamp,
             "last_run": {
+                "id": "run-123",
                 "name": "run-123",
                 "project": "test-project",
                 "stage": "dev",
@@ -215,6 +223,7 @@ class TestPipelineCommands:
     def test_get_pipeline_logs_with_options(self, runner, mock_client, mock_response):
         # Mock the response for the pipeline
         pipeline_get_response = models.PipelineSchema(**{
+            "id": "pipeline-123",
             "name": "test-pipeline",
             "project": "test-project",
             "stage": "dev",
@@ -222,6 +231,7 @@ class TestPipelineCommands:
             "created_at": timestamp,
             "updated_at": timestamp,
             "last_run": {
+                "id": "run-123",
                 "name": "run-123",
                 "project": "test-project",
                 "stage": "dev",
@@ -244,6 +254,7 @@ class TestPipelineCommands:
 class TestTaskCommands:
     def test_list_tasks_success(self, runner, mock_client, mock_response):
         mock_response.json.return_value = [{
+            "id": "task-123",
             "name": "test-task",
             "project": "test-project",
             "stage": "dev",
@@ -267,6 +278,7 @@ class TestTaskCommands:
 
     def test_describe_task_success(self, runner, mock_client, mock_response):
         mock_response.json.return_value = {
+            "id": "task-123",
             "name": "test-task",
             "project": "test-project",
             "stage": "dev",
@@ -283,6 +295,7 @@ class TestTaskCommands:
 
     def test_submit_task_success(self, runner, mock_client, mock_response):
         mock_response.json.return_value = {
+            "id": "task-123",
             "name": "test-task",
             "project": "test-project",
             "stage": "dev",
@@ -290,6 +303,7 @@ class TestTaskCommands:
             "created_at": timestamp,
             "updated_at": timestamp,
             "last_run": {
+                "id": "run-123",
                 "name": "run-123",
                 "project": "test-project",
                 "stage": "dev",
@@ -313,6 +327,7 @@ class TestTaskCommands:
 
     def test_get_task_logs(self, runner, mock_client, mock_response):
         task_response = models.TaskSchema(**{
+            "id": "task-123",
             "name": "test-task",
             "project": "test-project",
             "stage": "dev",
@@ -320,6 +335,7 @@ class TestTaskCommands:
             "created_at": timestamp,
             "updated_at": timestamp,
             "last_run": {
+                "id": "run-123",
                 "name": "run-123",
                 "project": "test-project",
                 "stage": "dev",
@@ -342,6 +358,7 @@ class TestTaskCommands:
 class TestBuildCommands:
     def test_list_builds_success(self, runner, mock_client, mock_response):
         mock_response.json.return_value = [{
+            "id": "build-123",
             "name": "test-build",
             "project": "test-project",
             "stage": "dev",
@@ -359,6 +376,7 @@ class TestBuildCommands:
 
     def test_describe_build_success(self, runner, mock_client, mock_response):
         mock_response.json.return_value = {
+            "id": "build-123",
             "name": "test-build",
             "project": "test-project",
             "stage": "dev",
@@ -377,6 +395,7 @@ class TestBuildCommands:
 
     def test_submit_build_success(self, runner, mock_client, mock_response):
         mock_response.json.return_value = {
+            "id": "build-123",
             "name": "test-build",
             "project": "test-project",
             "stage": "dev",
@@ -385,6 +404,7 @@ class TestBuildCommands:
             "updated_at": timestamp,
             "source_ref": "main",
             "last_run": {
+                "id": "run-123",
                 "name": "run-123",
                 "project": "test-project",
                 "stage": "dev",
@@ -404,6 +424,7 @@ class TestBuildCommands:
 
     def test_get_build_logs(self, runner, mock_client, mock_response):
         build_response = models.BuildSchema(**{
+            "id": "build-123",
             "name": "test-build",
             "project": "test-project",
             "stage": "dev",
@@ -412,6 +433,7 @@ class TestBuildCommands:
             "updated_at": timestamp,
             "source_ref": "main",
             "last_run": {
+                "id": "run-123",
                 "name": "run-123",
                 "project": "test-project",
                 "stage": "dev",

@@ -24,6 +24,7 @@ class TestPRAXCommands(TestCase):
 
     def test_describe_route(self):
         route = models.RouteSchema(
+            id='test-route-id',
             name='test-route',
             org='test-org',
             display_name='test-route',

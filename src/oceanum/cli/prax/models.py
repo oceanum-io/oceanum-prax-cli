@@ -7,7 +7,6 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional, Union
-from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel, SecretStr
 
@@ -192,7 +191,19 @@ class ObjectRef(RootModel[str]):
     root: str = Field(..., max_length=255, title='Object Ref')
 
 
+class ServiceName(RootModel[str]):
+    root: str = Field(
+        ...,
+        description="The Project's service name for the Route",
+        max_length=255,
+        title='Service Name',
+    )
+
+
 class RouteSchema(BaseModel):
+    id: str = Field(
+        ..., description='The unique identifier of the staged resource', title='ID'
+    )
     org: str = Field(..., title='Org')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
@@ -229,6 +240,16 @@ class RouteSchema(BaseModel):
         description='The last known Route Status',
         max_length=20,
         title='Status',
+    )
+    service_name: Optional[ServiceName] = Field(
+        default=None,
+        description="The Project's service name for the Route",
+        title='Service Name',
+    )
+    notebook: bool = Field(
+        default=False,
+        description='Whether the Route is a Jupyter Notebook or not',
+        title='Notebook',
     )
 
 
@@ -302,15 +323,6 @@ class Artifact(BaseModel):
     )
 
 
-class Registry(RootModel[str]):
-    root: str = Field(
-        ...,
-        description='The Docker Registry URL domain for the build, no schema or path, only domain',
-        pattern='^([A-Za-z0-9]([A-Za-z0-9-]{1,63}[A-Za-z0-9]\\.)+)[A-Za-z]{2,6}$',
-        title='Docker Registry domain URL',
-    )
-
-
 class ImageRef(RootModel[str]):
     root: str = Field(
         ...,
@@ -338,17 +350,6 @@ class UserSecretRef(SecretRef):
 
 
 class BuildCredentials(BaseModel):
-    registry: Optional[Registry] = Field(
-        default=None,
-        description='The Docker Registry URL domain for the build, no schema or path, only domain',
-        title='Docker Registry domain URL',
-    )
-    username: Optional[str] = Field(
-        default=None, description='The username for the registry', title='Username'
-    )
-    password: Optional[SecretStr] = Field(
-        default=None, description='The password for the registry', title='Password'
-    )
     image_ref: Optional[ImageRef] = Field(
         default=None,
         alias='imageRef',
@@ -475,8 +476,10 @@ class ContinueOn(BaseModel):
 class SecretRef1(RootModel[str]):
     root: str = Field(
         ...,
-        description='A reference to the Secret containing the SSL/TLS certificate and private cert and key for the Custom Domain, the Secret expect data with 2 keys `cert` and `key`.',
+        description='The Secret reference name from the list of Secret resources',
         max_length=255,
+        min_length=3,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
         title='Secret Reference',
     )
 
@@ -492,20 +495,8 @@ class CustomDomainSpec(BaseModel):
     secret_ref: Optional[SecretRef1] = Field(
         default=None,
         alias='secretRef',
-        description='A reference to the Secret containing the SSL/TLS certificate and private cert and key for the Custom Domain, the Secret expect data with 2 keys `cert` and `key`.',
+        description='A reference to the Secret containing the SSL/TLS certificate and private cert and key for the Custom Domain, the Secret expect data with 2 keys `tls.crt` and `tls.key`.',
         title='Secret Reference',
-    )
-    tls_cert: Optional[SecretStr] = Field(
-        default=None,
-        alias='tlsCert',
-        description="The Custom Domain's TLS Certificate",
-        title='TLS Certificate',
-    )
-    tls_key: Optional[SecretStr] = Field(
-        default=None,
-        alias='tlsKey',
-        description="The Custom Domain's TLS Key",
-        title='TLS Key',
     )
 
 
@@ -529,13 +520,13 @@ class CyclicDag(BaseModel):
     start_cycle: datetime = Field(
         ...,
         alias='startCycle',
-        description='The start cycle in UTC of the DAG as an iso8601 string i.e. YYYY-MM-DDTHH:MM:SSZ',
+        description='The start cycle in UTC of the DAG as an iso8601 string i.e. YYYY-MM-DDTHH:MM:SSZ or without timezone info. If no timezone is provided, it will be treated as UTC (Z suffix).',
         title='Startcycle',
     )
     end_cycle: datetime = Field(
         ...,
         alias='endCycle',
-        description='The end cycle in UTC of the DAG as an iso8601 string i.e. YYYY-MM-DDTHH:MM:SSZ',
+        description='The end cycle in UTC of the DAG as an iso8601 string i.e. YYYY-MM-DDTHH:MM:SSZ with or without timezone info. If no timezone is provided, it will be treated as UTC (Z suffix).',
         title='Endcycle',
     )
     frequency: Optional[Frequency] = Field(
@@ -648,26 +639,17 @@ class ImageSpec(BaseModel):
         description='Image reference from project Images or a public or a private image URL, private images requires username and password or secret to be set',
         title='Image reference or URL',
     )
-    username: Optional[SecretStr] = Field(
-        default=None,
-        description="User's username used for authentication to the registry",
-        title='Image Username',
-    )
-    password: Optional[SecretStr] = Field(
-        default=None,
-        description="User's password used for authentication to the registry",
-        title='Image Password',
-    )
-    email: Optional[EmailStr] = Field(
-        default=None,
-        description="User's email used for authentication to the registry",
-        title='Image Email',
-    )
     secret_ref: Optional[SecretRef2] = Field(
         default=None,
         alias='secretRef',
-        description='Image Secret Reference from project Secrets containing username, password and email key:value pairs',
+        description="Image Secret Reference from project Secrets containing 'username' and 'password' key:value pairs",
         title='Image Secret Reference',
+    )
+    user_secret_ref: Optional[UserSecretRef] = Field(
+        default=None,
+        alias='userSecretRef',
+        description="User Secret Reference from user Secrets containing 'username' and 'password' key:value pairs",
+        title='User Secret Reference',
     )
 
 
@@ -1170,11 +1152,6 @@ class SourceRepositorySpec(BaseModel):
         description='A GitLab repository to use as the source repository',
         title='GitLab Source Repository',
     )
-    token: Optional[SecretStr] = Field(
-        default=None,
-        description='A token to use for authentication with the source repository',
-        title='Source Repository Token',
-    )
     default_branch: str = Field(
         default='main',
         alias='defaultBranch',
@@ -1386,6 +1363,53 @@ class TierOptions(Enum):
     backend = 'backend'
 
 
+class TimeFilter(BaseModel):
+    """
+    TimeFilter describes a window in time. It filters out events that occur outside the time limits. In other words, only events that occur after Start and before Stop will pass this filter.
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    start: str = Field(
+        ...,
+        description='Start is the beginning of a time window in UTC. Before this time, events for this dependency are ignored. Format is hh:mm:ss.',
+        pattern='^(?:[01]\\d|2[0-3]):([0-5][0-9]):([0-5][0-9])$',
+        title='Start',
+    )
+    stop: str = Field(
+        ...,
+        description='Stop is the end of a time window in UTC. After or equal to this time, events for this dependency are ignored and Format is hh:mm:ss. If it is smaller than Start, it is treated as next day of Start (e.g.: 22:00:00-01:00:00 means 22:00:00-25:00:00).',
+        pattern='^(?:[01]\\d|2[0-3]):([0-5][0-9]):([0-5][0-9])$',
+        title='Stop',
+    )
+
+
+class ResourceUsageSchema(BaseModel):
+    start_time: Optional[datetime] = Field(
+        default=None, description='The start time of the usage data', title='Start Time'
+    )
+    end_time: Optional[datetime] = Field(
+        default=None, description='The end time of the usage data', title='End Time'
+    )
+    cpu: Optional[int] = Field(
+        default=0, description='The CPU usage in millicores', title='CPU'
+    )
+    memory: Optional[int] = Field(
+        default=0, description='The Memory usage in MiB', title='Memory'
+    )
+    ephemeral_storage: Optional[int] = Field(
+        default=0,
+        description='The Ephemeral Storage usage in MiB',
+        title='Ephemeral Storage',
+    )
+    persistent_storage: Optional[int] = Field(
+        default=0,
+        description='The Persistent Storage usage in MiB',
+        title='Persistent Storage',
+    )
+
+
 class SourceType(RootModel[str]):
     root: str = Field(..., max_length=255, title='Source Type')
 
@@ -1395,6 +1419,9 @@ class Repository(RootModel[str]):
 
 
 class SourceSchema(BaseModel):
+    id: str = Field(
+        ..., description='The unique identifier of the staged resource', title='ID'
+    )
     org: str = Field(..., title='Org')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
@@ -1410,6 +1437,9 @@ class SourceSchema(BaseModel):
 
 
 class StagedRunSchema(BaseModel):
+    id: str = Field(
+        ..., description='The unique identifier of the staged resource', title='ID'
+    )
     org: str = Field(..., title='Org')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
@@ -1427,6 +1457,9 @@ class StagedRunSchema(BaseModel):
 
 
 class TaskSchema(BaseModel):
+    id: str = Field(
+        ..., description='The unique identifier of the staged resource', title='ID'
+    )
     org: str = Field(..., title='Org')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
@@ -1529,6 +1562,9 @@ class StagedResourceFilterSchema(BaseModel):
 
 
 class TaskRunsSchema(BaseModel):
+    id: str = Field(
+        ..., description='The unique identifier of the staged resource', title='ID'
+    )
     org: str = Field(..., title='Org')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
@@ -1549,6 +1585,9 @@ class SubmitForm(BaseModel):
 
 
 class PipelineRunsSchema(BaseModel):
+    id: str = Field(
+        ..., description='The unique identifier of the staged resource', title='ID'
+    )
     org: str = Field(..., title='Org')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
@@ -1573,6 +1612,9 @@ class PipelineRunsSchema(BaseModel):
 
 
 class BuildRunsSchema(BaseModel):
+    id: str = Field(
+        ..., description='The unique identifier of the staged resource', title='ID'
+    )
     org: str = Field(..., title='Org')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
@@ -1698,6 +1740,48 @@ class ContainerResources(BaseModel):
         alias='nodeLabels',
         description='The node-pool labels to match for scheduling the resource request',
         title='Node Labels',
+    )
+
+
+class DatasourceEventTrigger(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    action_type: str = Field(
+        default='updated',
+        alias='actionType',
+        description='actionType is the event action to trigger the pipeline, e.g. "created", "updated", "deleted"',
+        pattern='^(created|updated|deleted)$',
+        title='Datasource Event Action Type',
+    )
+    id_filters: Optional[list[str]] = Field(
+        default=None,
+        alias='idFilters',
+        description='idFilters, is list of Datasource IDs.',
+        title='Datasource ID Filter',
+    )
+    name_filter: Optional[list[str]] = Field(
+        default=None,
+        alias='nameFilter',
+        description='nameFilter is a list of Datasource name to filter by the datasource\'s "name" attribute',
+        title='Datsource Name Filter',
+    )
+    driver_filter: Optional[str] = Field(
+        default=None,
+        alias='driverFilter',
+        description='driverFilter a Datasource driver name to filter by the datasource\'s "driver" attribute',
+        title='Datasource Driver Filter',
+    )
+    time_filter: Optional[TimeFilter] = Field(
+        default=None,
+        alias='timeFilter',
+        description='timeFilter is the time filter to limit the events that will trigger the pipeline, only events that occur after Start and before Stop will pass this filter',
+        title='Event Time Filter',
+    )
+    parameters: Optional[list[PipelineTriggerParameter]] = Field(
+        default=None,
+        description="Propagate values from the event parameters into the triggered pipeline parameters values, the event parameters are 'entity', 'id', 'action', 'modified', 'driver' and 'name'",
+        title='Pipeline Trigger Parameters',
     )
 
 
@@ -1883,6 +1967,11 @@ class PipelineTriggers(BaseModel):
         description='Trigger this pipeline when other pipeline phase from same project is reached',
         title='Pipelinephase',
     )
+    datasource_event: Optional[DatasourceEventTrigger] = Field(
+        default=None,
+        alias='datasourceEvent',
+        description='Trigger this pipeline when a Datamesh Datasource event is emitted',
+    )
 
 
 class PipelineVolume(BaseModel):
@@ -2052,6 +2141,9 @@ class Volume(BaseModel):
 
 
 class BuildSchema(BaseModel):
+    id: str = Field(
+        ..., description='The unique identifier of the staged resource', title='ID'
+    )
     org: str = Field(..., title='Org')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
@@ -2082,6 +2174,9 @@ class BuildSchema(BaseModel):
 
 
 class PipelineSchema(BaseModel):
+    id: str = Field(
+        ..., description='The unique identifier of the staged resource', title='ID'
+    )
     org: str = Field(..., title='Org')
     stage: str = Field(..., title='Stage')
     project: str = Field(..., title='Project')
@@ -2117,6 +2212,7 @@ class StageResourcesSchema(BaseModel):
 
 
 class StageSchema(BaseModel):
+    id: str = Field(..., description='The unique identifier of the stage', title='ID')
     resources: StageResourcesSchema
     name: str = Field(..., max_length=255, title='Name')
     status: str = Field(default='created', max_length=20, title='Status')
@@ -3094,17 +3190,46 @@ class ProjectSpec(BaseModel):
 
 
 class SpecRevisionSchema(BaseModel):
+    id: str = Field(
+        ..., description='The unique identifier of the spec revision', title='ID'
+    )
     spec: ProjectSpec = Field(..., description='The project spec', title='Spec')
     author: str = Field(..., title='Author')
     created_at: datetime = Field(..., title='Created At')
     number: int = Field(default=0, title='Number')
     status: str = Field(default='created', max_length=20, title='Status')
-    uuid: Optional[UUID] = Field(default=None, title='Uuid')
 
 
 class ProjectSchema(BaseModel):
+    id: str = Field(..., description='The unique identifier of the project', title='ID')
     last_revision: Optional[SpecRevisionSchema] = None
     stages: list[StageSchema] = Field(..., title='Stages')
+    current_usage: ResourceUsageSchema = Field(
+        default_factory=lambda: ResourceUsageSchema.model_validate(
+            {
+                'start_time': None,
+                'end_time': None,
+                'cpu': 0,
+                'memory': 0,
+                'ephemeral_storage': 0,
+                'persistent_storage': 0,
+            }
+        ),
+        description='The current compute resources usage of the project (only running containers)',
+    )
+    cumulative_usage: ResourceUsageSchema = Field(
+        default_factory=lambda: ResourceUsageSchema.model_validate(
+            {
+                'start_time': None,
+                'end_time': None,
+                'cpu': 0,
+                'memory': 0,
+                'ephemeral_storage': 0,
+                'persistent_storage': 0,
+            }
+        ),
+        description='The accumulated compute resources usage-seconds of the project',
+    )
     owner: str = Field(..., title='Owner')
     org: str = Field(..., title='Org')
     name: str = Field(..., max_length=255, title='Name')

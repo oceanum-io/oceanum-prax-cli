@@ -13,6 +13,7 @@ from oceanum.cli.prax import models, client
 runner = CliRunner()
 
 route_schema = models.RouteSchema(
+    id='test-route-id',
     name='test-route',
     org='test-org',
     display_name='test-route',

@@ -18,8 +18,10 @@ runner = CliRunner()
 good_specfile = Path(__file__).parent/'data/dpm-project.yaml'
 with good_specfile.open() as f:
     project_schema = models.ProjectSchema(
+        id='test-project',
         stages=[
             models.StageSchema(
+                id='test-stage',
                 updated_at=datetime.now().replace(tzinfo=timezone.utc),
                 name='test-stage',
                 status='healty',
@@ -34,6 +36,7 @@ with good_specfile.open() as f:
             )
         ],
         last_revision=models.SpecRevisionSchema(
+            id='test-revision',
             spec=models.ProjectSpec(**yaml.safe_load(f)),
             created_at=datetime.now().replace(tzinfo=timezone.utc),
             number=1,
@@ -121,6 +124,7 @@ class TestListProject(TestCase):
     def test_list_project(self):
         projects = [
             models.ProjectSchema(
+                id='test-project',
                 stages=[],
                 name='test-project',
                 org='test-org',
@@ -262,15 +266,18 @@ class TestDescribeProject(TestCase):
         self.full_schema = models.ProjectSchema(
             stages=[
                 models.StageSchema(
+                    id='test-stage',
                     updated_at=datetime.now().replace(tzinfo=timezone.utc),
                     name='test-stage',
                     status='healthy',
                     resources=models.StageResourcesSchema(
+                        id='test-stage',
                         name='test-stage',
                         pipelines=[],
                         tasks=[],
                         sources=[
                             models.SourceSchema(
+                                id='test-source',
                                 name='test-source',
                                 org='test-org',
                                 created_at=datetime.now().replace(tzinfo=timezone.utc),
@@ -284,6 +291,7 @@ class TestDescribeProject(TestCase):
                         ],
                         builds=[
                             models.BuildSchema(
+                                id='test-build',
                                 org='test-org',
                                 project='test-project',
                                 name='test-build',
@@ -294,6 +302,7 @@ class TestDescribeProject(TestCase):
                         ],
                         routes=[
                             models.RouteSchema(
+                                id='test-route',
                                 name='test-route',
                                 org='test-org',
                                 display_name='test-route',
@@ -310,6 +319,7 @@ class TestDescribeProject(TestCase):
                 )
             ],
             last_revision=models.SpecRevisionSchema(
+                id='test-revision',
                 spec=models.ProjectSpec(
                     name='test-project',
                     userRef=models.UserRef('test-user'),
@@ -320,6 +330,7 @@ class TestDescribeProject(TestCase):
                 status='active',
                 author='test-user',
             ),
+            id='test-project',
             name='test-project',
             org='test-org',
             owner='test-user',
