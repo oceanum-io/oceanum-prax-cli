@@ -54,9 +54,9 @@ def list_routes(ctx: click.Context, output: str, open_access: bool, current_org:
         k: v for k, v in filters.items() if v is not None
     })
     if not routes:
-        click.echo('No routes found!')
+        click.echo(f' {wrn} No routes found!')
     elif isinstance(routes, models.ErrorResponse):
-        click.echo(f"{wrn} Error fetching routes:")
+        click.echo(f"{err} Error fetching routes:")
         echoerr(routes)
         sys.exit(1)
     else:

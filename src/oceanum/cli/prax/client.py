@@ -123,7 +123,7 @@ class PRAXClient:
         obj = None
         if not errs and schema is not None:
             obj = self._validate_schema(response, schema)
-        return obj or response,  errs
+        return obj if obj is not None else response,  errs
     
     def _wait_project_commit(self, **params) -> bool:
         while True:
@@ -376,10 +376,6 @@ class PRAXClient:
                     type=e['type']) for e in e.errors()
                 ])
     
-
-    # PROJECT METHODS
-
-
     def list_projects(self, **filters) -> list[models.ProjectItemSchema] | models.ErrorResponse:
         obj, errs = self._request('GET', 'projects', params=filters or None, schema=models.ProjectItemSchema)
         list_projects_err = models.ErrorResponse(detail="Failed to list projects!")
