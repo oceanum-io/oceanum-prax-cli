@@ -128,7 +128,7 @@ def deploy_project(
     project = client.get_project(**get_params)
     click.echo()
 
-    if isinstance(project, models.ProjectSchema):
+    if isinstance(project, models.ProjectDetailsSchema):
         click.echo(f" {spin} Updating existing PRAX Project:")
     else:
         if 'not found' in str(project.detail).lower():
@@ -151,7 +151,7 @@ def deploy_project(
         click.echo(f" {wrn} {project.detail}")
         sys.exit(1)
     project = client.get_project(**get_params)
-    if isinstance(project, models.ProjectSchema) and project.last_revision is not None:
+    if isinstance(project, models.ProjectDetailsSchema) and project.last_revision is not None:
         click.echo(f" {chk} Revision #{project.last_revision.number} created successfully!")
         if wait:
             click.echo(f' {spin} Waiting for project to be deployed...')
@@ -169,7 +169,7 @@ def deploy_project(
 def delete_project(ctx: click.Context, project_name: str, org: str|None, user:str|None):
     client = PRAXClient(ctx)
     project = client.get_project(project_name, org=org, user=user)
-    if isinstance(project, models.ProjectSchema):
+    if isinstance(project, models.ProjectDetailsSchema):
         click.confirm(
             f"Deleting project:{linesep}"\
             f"{linesep}"\
@@ -204,11 +204,11 @@ def delete_project(ctx: click.Context, project_name: str, org: str|None, user:st
 def describe_project(ctx: click.Context, project_name: str, org: str, user:str, show_spec: bool=False, only_spec: bool=False):
     client = PRAXClient(ctx)
     project = client.get_project(project_name, org=org, user=user)
-    last_revision = project.last_revision if isinstance(project, models.ProjectSchema) else None
+    last_revision = project.last_revision if isinstance(project, models.ProjectDetailsSchema) else None
     project_spec = last_revision.spec if last_revision is not None else None
     click.echo()
 
-    def render_revision(revision: models.SpecRevisionSchema):
+    def render_revision(revision: models.RevisionDetailsSchema):
         revision_fields = [
             RenderField(label='Revision', path='$.number'),
             RenderField(label='Author', path='$.author'),
@@ -281,7 +281,7 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
         if resources.pipelines:
             render_resources(resources.pipelines, pipeline_fields, indent=6)
 
-    def render_stage(stage: models.StageSchema):
+    def render_stage(stage: models.StageDetailsSchema):
         stage_fields = [
             RenderField(label='Stage Name', path='$.name'),
             RenderField(label='Status', path='$.status'),
@@ -296,7 +296,7 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
         click.echo(' '*2+'Deployed Resources:')
         render_stage_resources(stage.resources)
 
-    if isinstance(project, models.ProjectSchema) and project_spec is not None:
+    if isinstance(project, models.ProjectDetailsSchema) and project_spec is not None:
         render_fields = [
             RenderField(label='Resource Name', path='$.name'),
             RenderField(label='Description', path='$.description'),
@@ -335,7 +335,7 @@ def update_project(ctx: click.Context, project_name: str, description: str, org:
     client = PRAXClient(ctx)
     project = client.get_project(project_name, org=org, user=user)
     ops = []
-    if isinstance(project, models.ProjectSchema):
+    if isinstance(project, models.ProjectDetailsSchema):
         project.description = description
         if description:
             ops.append(models.JSONPatchOpSchema(
@@ -350,7 +350,7 @@ def update_project(ctx: click.Context, project_name: str, description: str, org:
                 value=active
             ))
         project = client.patch_project(project.name, ops)
-        if isinstance(project, models.ProjectSchema):
+        if isinstance(project, models.ProjectDetailsSchema):
             click.echo(f"Project '{project_name}' description updated!")
 
     if isinstance(project, models.ErrorResponse):
@@ -385,7 +385,7 @@ def allow_project(ctx: click.Context, project_name: str, org: str, group: list[s
 
     client = PRAXClient(ctx)
     response = client.get_project(project_name, org=org, user=user)
-    if isinstance(response, models.ProjectSchema):
+    if isinstance(response, models.ProjectDetailsSchema):
         permissions = models.ResourcePermissionsSchema(
             groups=[_get_perm(g) for g in group],
             users=[_get_perm(u) for u in user],

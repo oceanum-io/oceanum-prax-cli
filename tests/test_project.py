@@ -17,10 +17,10 @@ runner = CliRunner()
 
 good_specfile = Path(__file__).parent/'data/dpm-project.yaml'
 with good_specfile.open() as f:
-    project_schema = models.ProjectSchema(
+    project_schema = models.ProjectDetailsSchema(
         id='test-project',
         stages=[
-            models.StageSchema(
+            models.StageDetailsSchema(
                 id='test-stage',
                 updated_at=datetime.now().replace(tzinfo=timezone.utc),
                 name='test-stage',
@@ -35,7 +35,7 @@ with good_specfile.open() as f:
                 )
             )
         ],
-        last_revision=models.SpecRevisionSchema(
+        last_revision=models.RevisionDetailsSchema(
             id='test-revision',
             spec=models.ProjectSpec(**yaml.safe_load(f)),
             created_at=datetime.now().replace(tzinfo=timezone.utc),
@@ -123,7 +123,7 @@ class TestListProject(TestCase):
 
     def test_list_project(self):
         projects = [
-            models.ProjectSchema(
+            models.ProjectDetailsSchema(
                 id='test-project',
                 stages=[],
                 name='test-project',
@@ -263,15 +263,14 @@ class TestDeployProject(TestCase):
 
 class TestDescribeProject(TestCase):
     def setUp(self) -> None:
-        self.full_schema = models.ProjectSchema(
+        self.full_schema = models.ProjectDetailsSchema(
             stages=[
-                models.StageSchema(
+                models.StageDetailsSchema(
                     id='test-stage',
                     updated_at=datetime.now().replace(tzinfo=timezone.utc),
                     name='test-stage',
                     status='healthy',
                     resources=models.StageResourcesSchema(
-                        id='test-stage',
                         name='test-stage',
                         pipelines=[],
                         tasks=[],
@@ -318,7 +317,7 @@ class TestDescribeProject(TestCase):
                     )
                 )
             ],
-            last_revision=models.SpecRevisionSchema(
+            last_revision=models.RevisionDetailsSchema(
                 id='test-revision',
                 spec=models.ProjectSpec(
                     name='test-project',
@@ -386,14 +385,14 @@ class TestAllowProject(TestCase):
             assert mock_request.call_count == 1
 
     def test_allow_project(self):
-        post_response = MagicMock(status_code=200)
-        post_response.json.return_value = {'success': True}
+        post_response = models.ResourcePermissionsSchema(
+            users=[],
+            groups=[],
+        )
         with patch.object(client.PRAXClient, 'get_project', return_value=project_schema) as mock_request:
-            with patch.object(client.PRAXClient, '_post', return_value=(post_response, None)) as mock_request:
+            with patch.object(client.PRAXClient, '_request', return_value=(post_response, None)) as mock_request:
                 result = runner.invoke(main, ['prax', 'allow', 'project', 'test-project','--user','some-user','--change'])
-                print(result.output)
                 assert result.exit_code == 0
-                assert 'success' in result.output
 
 timestamp = datetime.now().replace(tzinfo=timezone.utc).isoformat()
 

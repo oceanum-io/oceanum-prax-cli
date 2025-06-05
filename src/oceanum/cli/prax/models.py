@@ -1491,6 +1491,24 @@ class ProjectFilterSchema(BaseModel):
     )
 
 
+class RevisionItemSchema(BaseModel):
+    id: str = Field(
+        ..., description='The unique identifier of the spec revision', title='ID'
+    )
+    author: str = Field(..., title='Author')
+    created_at: datetime = Field(..., title='Created At')
+    number: int = Field(default=0, title='Number')
+    status: str = Field(default='created', max_length=20, title='Status')
+
+
+class StageItemsSchema(BaseModel):
+    id: str = Field(..., description='The unique identifier of the stage', title='ID')
+    name: str = Field(..., max_length=255, title='Name')
+    status: str = Field(default='created', max_length=20, title='Status')
+    error_message: str = Field(default='', title='Error Message')
+    updated_at: datetime = Field(..., title='Updated At')
+
+
 class GetProjectFilterSchema(BaseModel):
     org: Optional[str] = Field(
         default=None, description='Filter by org name', title='Org'
@@ -2211,13 +2229,37 @@ class StageResourcesSchema(BaseModel):
     )
 
 
-class StageSchema(BaseModel):
-    id: str = Field(..., description='The unique identifier of the stage', title='ID')
-    resources: StageResourcesSchema
+class ProjectItemSchema(BaseModel):
+    id: str = Field(..., description='The unique identifier of the project', title='ID')
+    last_revision: Optional[RevisionItemSchema] = Field(
+        default=None,
+        description='The last revision of the project spec',
+        title='Last Revision',
+    )
+    stages: list[StageItemsSchema] = Field(..., title='Stages')
+    current_usage: ResourceUsageSchema = Field(
+        default_factory=lambda: ResourceUsageSchema.model_validate(
+            {
+                'start_time': None,
+                'end_time': None,
+                'cpu': 0,
+                'memory': 0,
+                'ephemeral_storage': 0,
+                'persistent_storage': 0,
+            }
+        ),
+        description='The current compute resources usage of the project (only running containers)',
+    )
+    owner: str = Field(..., title='Owner')
+    org: str = Field(..., title='Org')
     name: str = Field(..., max_length=255, title='Name')
+    description: Optional[str] = Field(
+        default=None,
+        description='A description of the project, auto-generated from the spec',
+        title='Description',
+    )
+    created_at: datetime = Field(..., title='Created At')
     status: str = Field(default='created', max_length=20, title='Status')
-    error_message: str = Field(default='', title='Error Message')
-    updated_at: datetime = Field(..., title='Updated At')
 
 
 class BuildSpec(BaseModel):
@@ -2340,6 +2382,18 @@ class PipelineTaskArguments(BaseModel):
         default=None,
         description='Parameters declares the parameters that a step produces',
         title='Parameters',
+    )
+
+
+class StageDetailsSchema(BaseModel):
+    id: str = Field(..., description='The unique identifier of the stage', title='ID')
+    name: str = Field(..., max_length=255, title='Name')
+    status: str = Field(default='created', max_length=20, title='Status')
+    error_message: str = Field(default='', title='Error Message')
+    updated_at: datetime = Field(..., title='Updated At')
+    resources: StageResourcesSchema
+    spec: dict[str, Any] = Field(
+        default={}, description='The project spec rendered for stage', title='Spec'
     )
 
 
@@ -3189,21 +3243,25 @@ class ProjectSpec(BaseModel):
     )
 
 
-class SpecRevisionSchema(BaseModel):
+class RevisionDetailsSchema(BaseModel):
     id: str = Field(
         ..., description='The unique identifier of the spec revision', title='ID'
     )
-    spec: ProjectSpec = Field(..., description='The project spec', title='Spec')
     author: str = Field(..., title='Author')
     created_at: datetime = Field(..., title='Created At')
     number: int = Field(default=0, title='Number')
     status: str = Field(default='created', max_length=20, title='Status')
+    spec: ProjectSpec = Field(..., description='The project spec', title='Spec')
 
 
-class ProjectSchema(BaseModel):
+class ProjectDetailsSchema(BaseModel):
     id: str = Field(..., description='The unique identifier of the project', title='ID')
-    last_revision: Optional[SpecRevisionSchema] = None
-    stages: list[StageSchema] = Field(..., title='Stages')
+    last_revision: Optional[RevisionDetailsSchema] = Field(
+        default=None,
+        description='The last revision of the project spec',
+        title='Last Revision',
+    )
+    stages: list[StageDetailsSchema] = Field(..., title='Stages')
     current_usage: ResourceUsageSchema = Field(
         default_factory=lambda: ResourceUsageSchema.model_validate(
             {
@@ -3217,6 +3275,16 @@ class ProjectSchema(BaseModel):
         ),
         description='The current compute resources usage of the project (only running containers)',
     )
+    owner: str = Field(..., title='Owner')
+    org: str = Field(..., title='Org')
+    name: str = Field(..., max_length=255, title='Name')
+    description: Optional[str] = Field(
+        default=None,
+        description='A description of the project, auto-generated from the spec',
+        title='Description',
+    )
+    created_at: datetime = Field(..., title='Created At')
+    status: str = Field(default='created', max_length=20, title='Status')
     cumulative_usage: ResourceUsageSchema = Field(
         default_factory=lambda: ResourceUsageSchema.model_validate(
             {
@@ -3230,16 +3298,6 @@ class ProjectSchema(BaseModel):
         ),
         description='The accumulated compute resources usage-seconds of the project',
     )
-    owner: str = Field(..., title='Owner')
-    org: str = Field(..., title='Org')
-    name: str = Field(..., max_length=255, title='Name')
-    description: Optional[str] = Field(
-        default=None,
-        description='A description of the project, auto-generated from the spec',
-        title='Description',
-    )
-    created_at: datetime = Field(..., title='Created At')
-    status: str = Field(default='created', max_length=20, title='Status')
 
 
 ContainerCommandRequiredSpec.model_rebuild()

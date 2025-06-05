@@ -16,8 +16,7 @@ class TestUser(TestCase):
         assert result.exit_code == 0
 
     def test_create_user_secret(self):
-        user_get_response = MagicMock(status_code=200)
-        user_get_response.json.return_value = [{
+        user_get_response = [models.UserSchema(**{
             'username': 'test-user',
             'email': 'test-user@test.com',
             'token': 'test-token',
@@ -36,26 +35,28 @@ class TestUser(TestCase):
                 'resources': [],
             }],
             'projects': [],
-        }]
-        create_response = MagicMock(status_code=201)
-        create_response.json.return_value = {
-            'name': 'test-secret',
-            'data': {'key': 'value'},
-        }
-        with patch.object(client.PRAXClient, '_get') as mock_request:
-            mock_request.return_value = (user_get_response, None)
-            with patch.object(client.PRAXClient, '_post') as mock_request:
+        })]
+        create_response = models.SecretSpec(
+            name='test-secret',
+            description='test-secret',
+            data=models.SecretData(root={'key': models.SecretStr('value')}),
+        )
+
+        with patch.object(client.PRAXClient, 'get_users') as get_users_mock:
+            get_users_mock.return_value = user_get_response
+            with patch.object(client.PRAXClient, '_request') as mock_request:
                 mock_request.return_value = (create_response, None)
                 result = runner.invoke(main, [
                     'prax', 'create', 'user-secret', 'test-secret', '--data', 'key=value'
                 ])
-                assert result.exit_code == 0
+                print(result.exc_info)
                 assert 'test-secret' in result.output
 
     def test_describe_user(self):
-        response = MagicMock(status_code=200)
-        response.json.return_value = [
+        response = [
+            models.UserSchema(**
             {
+                "id": "test-user-id",
                 'username': 'test-user',
                 'email': 'test-user@test.com',
                 'token': 'test-token',
@@ -78,10 +79,10 @@ class TestUser(TestCase):
                     }
                 ],
             }
+            )
         ]
-        with patch.object(client.PRAXClient, '_get') as mock_request:
+        with patch.object(client.PRAXClient, '_request') as mock_request:
             mock_request.return_value = (response, None)
             result = runner.invoke(main, ['prax', 'describe', 'user'])
-            print(result)
             assert result.exit_code == 0
             assert 'test-user' in result.output

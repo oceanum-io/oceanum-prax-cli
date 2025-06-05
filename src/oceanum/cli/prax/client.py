@@ -128,7 +128,7 @@ class PRAXClient:
     def _wait_project_commit(self, **params) -> bool:
         while True:
             project = self.get_project(**params)
-            if isinstance(project, models.ProjectSchema) and project.last_revision is not None:
+            if isinstance(project, models.ProjectDetailsSchema) and project.last_revision is not None:
                 if project.last_revision.status == 'created':
                     time.sleep(self._lag)
                     click.echo(f' {spin} Waiting for Revision #{project.last_revision.number} to be committed...')
@@ -151,7 +151,7 @@ class PRAXClient:
         counter = 0
         while True:
             project = self.get_project(**params)
-            if isinstance(project, models.ProjectSchema):
+            if isinstance(project, models.ProjectDetailsSchema):
                 updating = any([s.status in ['updating','degraded'] for s in project.stages])
                 ready_stages = all([s.status in ['ready', 'error'] for s in project.stages])
                 if updating:
@@ -179,7 +179,7 @@ class PRAXClient:
         
         project = self.get_project(**params)
         
-        if isinstance(project, models.ProjectSchema) and project.last_revision is not None:
+        if isinstance(project, models.ProjectDetailsSchema) and project.last_revision is not None:
             params['project'] = params.pop('project_name', project.name)
             
             spec = project.last_revision.spec
@@ -223,7 +223,7 @@ class PRAXClient:
         click.echo(f' {spin} Waiting for all stages to finish updating...')
         while True:
             project = self.get_project(**params)
-            if isinstance(project, models.ProjectSchema):
+            if isinstance(project, models.ProjectDetailsSchema):
                 project_name = project.name if project else 'unknown'
                 stages = project.stages if project else []
                 updating = any([s.status in ['building'] for s in stages])
@@ -240,7 +240,7 @@ class PRAXClient:
     
     def _check_routes(self, **params):
         project = self.get_project(**params)
-        if isinstance(project, models.ProjectSchema):
+        if isinstance(project, models.ProjectDetailsSchema):
             project_name = project.name if project else 'unknown'
             for stage in project.stages:
                 for route in stage.resources.routes:
@@ -380,32 +380,32 @@ class PRAXClient:
     # PROJECT METHODS
 
 
-    def list_projects(self, **filters) -> list[models.ProjectSchema] | models.ErrorResponse:
-        obj, errs = self._request('GET', 'projects', params=filters or None, schema=models.ProjectSchema)
+    def list_projects(self, **filters) -> list[models.ProjectItemSchema] | models.ErrorResponse:
+        obj, errs = self._request('GET', 'projects', params=filters or None, schema=models.ProjectItemSchema)
         list_projects_err = models.ErrorResponse(detail="Failed to list projects!")
         return obj if isinstance(obj, list) else errs or list_projects_err        
     
-    def get_project(self, project_name: str, **filters) -> models.ProjectSchema|models.ErrorResponse:
+    def get_project(self, project_name: str, **filters) -> models.ProjectDetailsSchema|models.ErrorResponse:
         """
         Try to get a project by name and org/user filters,
         when the project is not found, print the error message and return None
         """
         obj, errs = self._request('GET', f'projects/{project_name}', 
-                                  params=filters or None, schema=models.ProjectSchema)
+                                  params=filters or None, schema=models.ProjectDetailsSchema)
         get_project_err = models.ErrorResponse(detail=f"Failed to get project '{project_name}'!")
-        return obj if isinstance(obj, models.ProjectSchema) else errs or get_project_err
+        return obj if isinstance(obj, models.ProjectDetailsSchema) else errs or get_project_err
     
-    def deploy_project(self, spec: models.ProjectSpec) -> models.ProjectSchema | models.ErrorResponse:
+    def deploy_project(self, spec: models.ProjectSpec) -> models.ProjectDetailsSchema | models.ErrorResponse:
         payload = dump_with_secrets(spec)
-        obj, errs = self._request('POST', 'projects', json=payload, schema=models.ProjectSchema)
+        obj, errs = self._request('POST', 'projects', json=payload, schema=models.ProjectDetailsSchema)
         deploy_err = models.ErrorResponse(detail="Failed to deploy project!")
-        return obj if isinstance(obj, models.ProjectSchema) else errs or deploy_err
+        return obj if isinstance(obj, models.ProjectDetailsSchema) else errs or deploy_err
 
-    def patch_project(self, project_name: str, ops: list[models.JSONPatchOpSchema]) -> models.ProjectSchema | models.ErrorResponse:
+    def patch_project(self, project_name: str, ops: list[models.JSONPatchOpSchema]) -> models.ProjectDetailsSchema | models.ErrorResponse:
         payload = [op.model_dump(exclude_none=True, mode='json') for op in ops]
-        obj, errs = self._request('PATCH', f'projects/{project_name}', json=payload, schema=models.ProjectSchema)
+        obj, errs = self._request('PATCH', f'projects/{project_name}', json=payload, schema=models.ProjectDetailsSchema)
         patch_err = models.ErrorResponse(detail="Failed to patch project!")
-        return obj if isinstance(obj, models.ProjectSchema) else errs or patch_err
+        return obj if isinstance(obj, models.ProjectDetailsSchema) else errs or patch_err
     
     def delete_project(self, project_id: str, **filters) -> str | models.ErrorResponse:
         _, errs = self._request('DELETE', f'projects/{project_id}', params=filters or None)
@@ -552,7 +552,7 @@ class PRAXClient:
         return obj if isinstance(obj, models.StagedRunSchema) else errs or retry_build_run_err
     
     def list_routes(self, **filters) -> list[models.RouteSchema] | models.ErrorResponse:
-        obj, errs = self._request('GET', 'routes', params=filters or None)
+        obj, errs = self._request('GET', 'routes', params=filters or None, schema=models.RouteSchema)
         list_routes_err = models.ErrorResponse(detail="Failed to list routes!")
         return obj if isinstance(obj, list) else errs or list_routes_err
         
@@ -578,7 +578,7 @@ class PRAXClient:
         )
         if isinstance(response, requests.Response) and response.ok:
             for line in response.iter_lines():
-                yield line.decode('utf-8') if line else ''
+                yield line
         else:
             yield errs if errs else models.ErrorResponse(detail=response.text)
     

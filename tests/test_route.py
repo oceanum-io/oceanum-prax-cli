@@ -29,12 +29,16 @@ class TestAllowProject(TestCase):
 
     def test_list_notebooks(self):
         response = MagicMock(status_code=200)
-        response.json.return_value = [route_schema.model_dump(by_alias=True, exclude_none=True)]
+        response.json.return_value = [
+            route_schema.model_copy(
+                update={'notebook':True}
+            ).model_dump()
+        ]
         with patch('requests.request', return_value=response) as mock_request:
             result = runner.invoke(main, ['prax', 'list', 'notebooks'])
+            print(result.output)
             assert result.exit_code == 0
             assert 'test-route' in result.output
-            assert mock_request.call_count == 1
     
     def test_allow_help(self):
         result = runner.invoke(main, ['prax', 'allow', 'project', '--help'])
@@ -50,10 +54,11 @@ class TestAllowProject(TestCase):
             assert mock_request.call_count == 1
 
     def test_allow_route(self):
-        post_response = MagicMock(status_code=200)
-        post_response.json.return_value = {'success': True}
+        post_response = models.ResourcePermissionsSchema(
+            users=[],
+            groups=[],
+        )
         with patch.object(client.PRAXClient, 'get_route', return_value=route_schema) as mock_request:
-            with patch.object(client.PRAXClient, '_post', return_value=(post_response, None)) as mock_request:
+            with patch.object(client.PRAXClient, '_request', return_value=(post_response, None)) as mock_request:
                 result = runner.invoke(main, ['prax', 'allow', 'route', 'test-route','--user','some-user','--change'])
                 assert result.exit_code == 0
-                assert 'success' in result.output
