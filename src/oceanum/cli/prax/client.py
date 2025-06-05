@@ -4,7 +4,8 @@ import yaml
 import time
 from datetime import timedelta
 from pathlib import Path
-from typing import Literal, Optional, Type, Iterable
+from typing import Literal, Optional, Type, Iterable, Any
+from functools import partial
 
 import click
 import humanize
@@ -106,8 +107,9 @@ class PRAXClient:
     def _request(self, 
         method: Literal['GET', 'POST', 'PUT','DELETE','PATCH'], 
         endpoint,
+        schema: Type[models.BaseModel]|None = None,
         **kwargs
-    ) -> tuple[requests.Response, models.ErrorResponse|None]:
+    ) -> tuple[Any|requests.Response, models.ErrorResponse|None]:
         assert self.service is not None, 'Service URL is required'
         if self.token is not None:
             headers = kwargs.pop('headers', {})|{
@@ -117,22 +119,11 @@ class PRAXClient:
             headers = kwargs.pop('headers', {})
         url = f"{self.service.removesuffix('/')}/{endpoint}"
         response = requests.request(method, url, headers=headers, **kwargs)
-        return response, self._handle_errors(response)
- 
-    def _get(self, endpoint, **kwargs) -> tuple[requests.Response, models.ErrorResponse|None]:
-        return self._request('GET', endpoint, **kwargs)
-    
-    def _post(self, endpoint, **kwargs) -> tuple[requests.Response, models.ErrorResponse|None]:
-        return self._request('POST', endpoint, **kwargs)
-    
-    def _patch(self, endpoint, **kwargs) -> tuple[requests.Response, models.ErrorResponse|None]:
-        return self._request('PATCH', endpoint, **kwargs)
-    
-    def _put(self, endpoint, **kwargs) -> tuple[requests.Response, models.ErrorResponse|None]:
-        return self._request('PUT', endpoint, **kwargs)
-    
-    def _delete(self, endpoint, **kwargs) -> tuple[requests.Response, models.ErrorResponse|None]:
-        return self._request('DELETE', endpoint, **kwargs)
+        errs = self._handle_errors(response)
+        obj = None
+        if not errs and schema is not None:
+            obj = self._validate_schema(response, schema)
+        return obj or response,  errs
     
     def _wait_project_commit(self, **params) -> bool:
         while True:
@@ -275,35 +266,85 @@ class PRAXClient:
                 return models.ErrorResponse(detail=response.json())
             except Exception as e:
                 return models.ErrorResponse(detail=str(e))
+        except requests.exceptions.RequestException as e:
+            return models.ErrorResponse(detail=str(e))
+        except Exception as e:
+            return models.ErrorResponse(detail=str(e))
+        
     
     def _run_action(self, 
             action: Literal['submit', 'terminate', 'retry'],
             endpoint: Literal['task', 'pipeline', 'build','task-runs','pipeline-runs','build-runs'],
             run_name: str,
         **params) -> models.StagedRunSchema | models.ErrorResponse:
-        action_methods = {
-            'terminate': self._put,
-            'retry': self._put,
-            'submit': self._post
-        }
         confirm_status = {
             'submit': 'Pending',
             'terminate': 'Failed',
             'retry': ['Pending', 'Running', 'Failed', 'Error']
         }
-        response, errs = action_methods[action](
+        obj, errs = self._request(
+            'PUT' if action in ['terminate', 'retry'] else 'POST',
             f'{endpoint}/{run_name}/{action}', 
             json=params or None, 
-            params=params or None
+            params=params or None,
+            schema=models.StagedRunSchema
         )
         if errs:
             return errs
-        else:
-            run = models.StagedRunSchema(**response.json())
-            if run.status in confirm_status[action]:
-                return run
+        elif isinstance(obj, models.StagedRunSchema):
+            if obj.status in confirm_status[action]:
+                return obj
             else:
                 return models.ErrorResponse(detail=f"Failed to {action} run '{run_name}'!")
+        else:
+            return models.ErrorResponse(detail=f"Failed to {action} run '{run_name}'!")
+        
+    def _submit(self, 
+            resp_model: Type[models.TaskSchema|models.BuildSchema|models.PipelineSchema],
+            name: str, 
+            parameters: dict|None, 
+            **filters) -> models.TaskSchema | models.BuildSchema | models.PipelineSchema | models.ErrorResponse:
+        endpoint = resp_model.__name__.removesuffix('Schema').lower()+"s"
+        obj, errs = self._request('POST',
+            f'{endpoint}/{name}/submit', 
+            json={'parameters': parameters} if parameters else None, 
+            params=filters or None,
+            schema=resp_model
+        )
+        if isinstance(obj, resp_model):
+            return obj
+        elif errs:
+            return errs
+        else:
+            return models.ErrorResponse(detail=f"Failed to submit {endpoint} '{name}'!")
+    
+    def _validate_schema(self, 
+        response: requests.Response, 
+        schema: Type[Any]
+    ) -> Any | models.ErrorResponse:
+        try:
+            json_data = response.json()
+            if isinstance(json_data, list):
+                return [schema(**item) for item in json_data]
+            else:
+                return schema(**response.json())
+        except requests.exceptions.JSONDecodeError:
+            click.echo(f" {err} API Response Error: {response.text}")
+            if self.ctx:
+                self.ctx.exit(1)
+            return models.ErrorResponse(detail=response.text)
+        except ValidationError as e:
+            click.echo(f" {err} API Validation Error")
+            click.echo(f" {wrn} This may be due to an outdated version of the client library, {os.linesep}"
+                       "please try update with \"pip install -U oceanum-prax\" and try again!")
+            if self.ctx:
+                self.ctx.exit(1)
+            return models.ErrorResponse(detail=[
+                models.ValidationErrorDetail(
+                    loc=[str(v) for v in e['loc']], 
+                    msg=e['msg'], 
+                    type=e['type']) for e in e.errors()
+                ])
 
     def wait_project_deployment(self, **params) -> bool:
         self._deploy_start_time = time.time()
@@ -335,91 +376,78 @@ class PRAXClient:
                     type=e['type']) for e in e.errors()
                 ])
     
-    def deploy_project(self, spec: models.ProjectSpec) -> models.ProjectSchema | models.ErrorResponse:
-        payload = dump_with_secrets(spec)
-        response, errs = self._post('projects', json=payload)
-        return errs if errs else models.ProjectSchema(**response.json())
 
-    def patch_project(self, project_name: str, ops: list[models.JSONPatchOpSchema]) -> models.ProjectSchema | models.ErrorResponse:
-        payload = [op.model_dump(exclude_none=True, mode='json') for op in ops]
-        response, errs = self._patch(f'projects/{project_name}', json=payload)
-        return errs if errs else models.ProjectSchema(**response.json())
-    
-    def delete_project(self, project_id: str, **filters) -> str | models.ErrorResponse:
-        response, errs = self._delete(f'projects/{project_id}', params=filters or None)
-        return errs if errs else "Project deleted successfully!"
-    
-    def get_users(self) -> list[models.UserSchema] | models.ErrorResponse:
-        response, errs = self._get('users')
-        if not errs:
-            return [models.UserSchema(**user) for user in response.json()]
-        return errs
-    
-    def create_or_update_user_secret(self, secret_name: str, org: str, secret_data: dict, description: str|None = None) -> models.SecretSpec | models.ErrorResponse:
-        response, errs = self._post(
-            f'users/{org}/resources/secrets', 
-            json={
-                'name': secret_name, 
-                'description': description,
-                'data': secret_data
-            }
-        )
-        return errs if errs else models.SecretSpec(**response.json())
+    # PROJECT METHODS
+
 
     def list_projects(self, **filters) -> list[models.ProjectSchema] | models.ErrorResponse:
-        response, errs = self._get('projects', params=filters or None)
-        if not errs:
-            projects_json = response.json()
-            projects = []
-            for project in projects_json:
-                try:
-                    models.ProjectSchema(**project)
-                    projects.append(project)
-                except Exception as e:
-                    click.echo(f"Error: {e}")
-                    click.echo(f"Project: {project}")
-            return projects
-        else:
-            return errs
+        obj, errs = self._request('GET', 'projects', params=filters or None, schema=models.ProjectSchema)
+        list_projects_err = models.ErrorResponse(detail="Failed to list projects!")
+        return obj if isinstance(obj, list) else errs or list_projects_err        
     
     def get_project(self, project_name: str, **filters) -> models.ProjectSchema|models.ErrorResponse:
         """
         Try to get a project by name and org/user filters,
         when the project is not found, print the error message and return None
         """
-        response, errs = self._get(f'projects/{project_name}', params=filters or None)
-        return errs if errs else models.ProjectSchema(**response.json())
+        obj, errs = self._request('GET', f'projects/{project_name}', 
+                                  params=filters or None, schema=models.ProjectSchema)
+        get_project_err = models.ErrorResponse(detail=f"Failed to get project '{project_name}'!")
+        return obj if isinstance(obj, models.ProjectSchema) else errs or get_project_err
     
+    def deploy_project(self, spec: models.ProjectSpec) -> models.ProjectSchema | models.ErrorResponse:
+        payload = dump_with_secrets(spec)
+        obj, errs = self._request('POST', 'projects', json=payload, schema=models.ProjectSchema)
+        deploy_err = models.ErrorResponse(detail="Failed to deploy project!")
+        return obj if isinstance(obj, models.ProjectSchema) else errs or deploy_err
+
+    def patch_project(self, project_name: str, ops: list[models.JSONPatchOpSchema]) -> models.ProjectSchema | models.ErrorResponse:
+        payload = [op.model_dump(exclude_none=True, mode='json') for op in ops]
+        obj, errs = self._request('PATCH', f'projects/{project_name}', json=payload, schema=models.ProjectSchema)
+        patch_err = models.ErrorResponse(detail="Failed to patch project!")
+        return obj if isinstance(obj, models.ProjectSchema) else errs or patch_err
+    
+    def delete_project(self, project_id: str, **filters) -> str | models.ErrorResponse:
+        _, errs = self._request('DELETE', f'projects/{project_id}', params=filters or None)
+        return errs if errs else "Project deleted successfully!"
+    
+    # USER METHODS
+    
+    def get_users(self) -> list[models.UserSchema] | models.ErrorResponse:
+        obj, errs = self._request('GET', 'users', schema=models.UserSchema, params=None)
+        get_users_err = models.ErrorResponse(detail="Failed to get users!")
+        return obj if isinstance(obj, list) else errs or get_users_err
+    
+    def create_or_update_user_secret(self, secret_name: str, org: str, secret_data: dict, description: str|None = None) -> models.SecretSpec | models.ErrorResponse:
+        obj, errs = self._request('POST',
+            f'users/{org}/resources/secrets', 
+            json={
+                'name': secret_name, 
+                'description': description,
+                'data': secret_data
+            },
+            schema=models.SecretSpec
+        )
+        secret_err = models.ErrorResponse(detail="Failed to create or update user secret!")
+        return obj if isinstance(obj, models.SecretSpec) else errs or secret_err
+
+
+
+
     def list_sources(self, **filters) -> list[models.SourceSchema] | models.ErrorResponse:
-        response, errs = self._get('sources', params=filters or None)
-        if not errs:
-            return [models.SourceSchema(**source) for source in response.json()]
-        else:
-            return errs
+        obj, errs = self._request('GET', 'sources', params=filters or None, schema=models.SourceSchema)
+        list_sources_err = models.ErrorResponse(detail="Failed to list sources!")
+        return obj if isinstance(obj, list) else errs or list_sources_err
     
     def list_tasks(self, **filters) -> list[models.TaskSchema] | models.ErrorResponse:
-        response, errs = self._get('tasks', params=filters or None)
-        if not errs:
-            return [models.TaskSchema(**task) for task in response.json()]
-        else:
-            return errs
+        obj, errs = self._request('GET', 'tasks', params=filters or None, schema=models.TaskSchema)
+        list_tasks_err = models.ErrorResponse(detail="Failed to list tasks!")
+        return obj if isinstance(obj, list) else errs or list_tasks_err
         
     def get_task(self, task_id: str, **filters) -> models.TaskSchema | models.ErrorResponse:
-        response, errs = self._get(f'tasks/{task_id}', params=filters or None)
-        return errs if errs else models.TaskSchema(**response.json())
-    
-    def _submit(self, 
-            resp_model: Type[models.TaskSchema|models.BuildSchema|models.PipelineSchema],
-            name: str, 
-            parameters: dict|None, 
-            **filters) -> models.TaskSchema | models.BuildSchema | models.PipelineSchema | models.ErrorResponse:
-        endpoint = resp_model.__name__.removesuffix('Schema').lower()+"s"
-        response, errs = self._post(
-            f'{endpoint}/{name}/submit', 
-            json={'parameters': parameters} if parameters else None, 
-            params=filters or None
-        )
-        return errs if errs else resp_model(**response.json())
+        obj, errs = self._request('GET', f'tasks/{task_id}', params=filters or None, schema=models.TaskSchema)
+        get_task_err = models.ErrorResponse(detail=f"Failed to get task '{task_id}'!")
+        return obj if isinstance(obj, models.TaskSchema) else errs or get_task_err
     
     def submit_task(self, task_name: str, parameters: dict|None, **filters) -> models.TaskSchema | models.ErrorResponse:
         task = self._submit(models.TaskSchema, task_name, parameters, **filters)
@@ -431,27 +459,29 @@ class PRAXClient:
             return models.ErrorResponse(detail="Failed to submit task!")
     
     def get_task_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        response, errs = self._get(f'task-runs/{run_name}', params=filters or None)
-        return errs if errs else models.StagedRunSchema(**response.json())
+        obj, errs = self._request('GET', f'task-runs/{run_name}', params=filters or None, schema=models.StagedRunSchema)
+        get_task_run_err = models.ErrorResponse(detail=f"Failed to get task run '{run_name}'!")
+        return obj if isinstance(obj, models.StagedRunSchema) else errs or get_task_run_err
     
     def terminate_task_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        response, errs = self._put(f'task-runs/{run_name}/terminate', params=filters or None)
-        return errs if errs else models.StagedRunSchema(**response.json())
+        obj, errs = self._request('PUT', f'task-runs/{run_name}/terminate', params=filters or None, schema=models.StagedRunSchema)
+        terminate_task_run_err = models.ErrorResponse(detail=f"Failed to terminate task run '{run_name}'!")
+        return obj if isinstance(obj, models.StagedRunSchema) else errs or terminate_task_run_err
     
     def retry_task_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        response, errs = self._put(f'task-runs/{run_name}/retry', params=filters or None)
-        return errs if errs else models.StagedRunSchema(**response.json())
+        obj, errs = self._request('PUT', f'task-runs/{run_name}/retry', params=filters or None, schema=models.StagedRunSchema)
+        retry_task_run_err = models.ErrorResponse(detail=f"Failed to retry task run '{run_name}'!")
+        return obj if isinstance(obj, models.StagedRunSchema) else errs or retry_task_run_err
 
     def list_pipelines(self, **filters) -> list[models.PipelineSchema] | models.ErrorResponse:
-        response, errs = self._get('pipelines', params=filters or None)
-        if not errs:
-            return [models.PipelineSchema(**pipeline) for pipeline in response.json()]
-        else:
-            return errs
+        obj, errs = self._request('GET', 'pipelines', params=filters or None, schema=models.PipelineSchema)
+        list_pipelines_err = models.ErrorResponse(detail="Failed to list pipelines!")
+        return obj if isinstance(obj, list) else errs or list_pipelines_err
         
     def get_pipeline(self, pipeline_name: str, **filters) -> models.PipelineSchema | models.ErrorResponse:
-        response, errs = self._get(f'pipelines/{pipeline_name}', params=filters or None)
-        return errs if errs else models.PipelineSchema(**response.json())
+        obj, errs = self._request('GET', f'pipelines/{pipeline_name}', params=filters or None, schema=models.PipelineSchema)
+        get_pipeline_err = models.ErrorResponse(detail=f"Failed to get pipeline '{pipeline_name}'!")
+        return obj if isinstance(obj, models.PipelineSchema) else errs or get_pipeline_err
     
     def submit_pipeline(self, pipeline_name: str, parameters: dict|None=None, **filters) -> models.PipelineSchema | models.ErrorResponse:
         pipeline = self._submit(models.PipelineSchema, pipeline_name, parameters, **filters)
@@ -463,32 +493,39 @@ class PRAXClient:
             return models.ErrorResponse(detail="Failed to submit pipeline!")
     
     def get_pipeline_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        response, errs = self._get(f'pipeline-runs/{run_name}', params=filters or None)
-        return errs if errs else models.StagedRunSchema(**response.json())
+        obj, errs = self._request('GET', f'pipeline-runs/{run_name}', params=filters or None, schema=models.StagedRunSchema)
+        get_pipeline_run_err = models.ErrorResponse(detail=f"Failed to get pipeline run '{run_name}'!")
+        return obj if isinstance(obj, models.StagedRunSchema) else errs or get_pipeline_run_err
     
     def terminate_pipeline_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        response, errs = self._put(f'pipeline-runs/{run_name}/terminate', params=filters or None)
-        return errs if errs else models.StagedRunSchema(**response.json())
+        obj, errs = self._request('PUT', f'pipeline-runs/{run_name}/terminate', params=filters or None, schema=models.StagedRunSchema)
+        terminate_pipeline_run_err = models.ErrorResponse(detail=f"Failed to terminate pipeline run '{run_name}'!")
+        return obj if isinstance(obj, models.StagedRunSchema) else errs or terminate_pipeline_run_err
     
     def stop_pipeline_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        response, errs = self._put(f'pipeline-runs/{run_name}/stop', params=filters or None)
-        return errs if errs else models.StagedRunSchema(**response.json())
+        obj, errs = self._request('PUT', f'pipeline-runs/{run_name}/stop', params=filters or None, schema=models.StagedRunSchema)
+        stop_pipeline_run_err = models.ErrorResponse(detail=f"Failed to stop pipeline run '{run_name}'!")
+        return obj if isinstance(obj, models.StagedRunSchema) else errs or stop_pipeline_run_err
     
     def resume_pipeline_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        response, errs = self._put(f'pipeline-runs/{run_name}/resume', params=filters or None)
-        return errs if errs else models.StagedRunSchema(**response.json())
+        obj, errs = self._request('PUT', f'pipeline-runs/{run_name}/resume', params=filters or None, schema=models.StagedRunSchema)
+        resume_pipeline_run_err = models.ErrorResponse(detail=f"Failed to resume pipeline run '{run_name}'!")
+        return obj if isinstance(obj, models.StagedRunSchema) else errs or resume_pipeline_run_err
     
     def retry_pipeline_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        response, errs = self._put(f'pipeline-runs/{run_name}/retry', params=filters or None)
-        return errs if errs else models.StagedRunSchema(**response.json())
-
+        obj, errs = self._request('PUT', f'pipeline-runs/{run_name}/retry', params=filters or None, schema=models.StagedRunSchema)
+        retry_pipeline_run_err = models.ErrorResponse(detail=f"Failed to retry pipeline run '{run_name}'!")
+        return obj if isinstance(obj, models.StagedRunSchema) else errs or retry_pipeline_run_err
+    
     def list_builds(self, **filters) -> list[models.BuildSchema] | models.ErrorResponse:
-        response, errs = self._get('builds', params=filters or None)
-        return errs if errs else [models.BuildSchema(**build) for build in response.json()]
+        obj, errs = self._request('GET', 'builds', params=filters or None, schema=models.BuildSchema)
+        list_builds_err = models.ErrorResponse(detail="Failed to list builds!")
+        return obj if isinstance(obj, list) else errs or list_builds_err
     
     def get_build(self, build_name: str, **filters) -> models.BuildSchema | models.ErrorResponse:
-        response, errs = self._get(f'builds/{build_name}', params=filters or None)
-        return errs if errs else models.BuildSchema(**response.json())
+        obj, errs = self._request('GET', f'builds/{build_name}', params=filters or None, schema=models.BuildSchema)
+        get_build_err = models.ErrorResponse(detail=f"Failed to get build '{build_name}'!")
+        return obj if isinstance(obj, models.BuildSchema) else errs or get_build_err
     
     def submit_build(self, build_name: str, parameters: dict|None=None,  **filters) -> models.BuildSchema | models.ErrorResponse:
         build = self._submit(models.BuildSchema, build_name, parameters, **filters)
@@ -500,90 +537,93 @@ class PRAXClient:
             return models.ErrorResponse(detail="Failed to submit build!")
     
     def get_build_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        response, errs = self._get(f'build-runs/{run_name}', params=filters or None)
-        return errs if errs else models.StagedRunSchema(**response.json())
+        obj, errs = self._request('GET', f'build-runs/{run_name}', params=filters or None, schema=models.StagedRunSchema)
+        get_build_run_err = models.ErrorResponse(detail=f"Failed to get build run '{run_name}'!")
+        return obj if isinstance(obj, models.StagedRunSchema) else errs or get_build_run_err
     
     def terminate_build_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        response, errs = self._put(f'build-runs/{run_name}/terminate', params=filters or None)
-        return errs if errs else models.StagedRunSchema(**response.json())
+        obj, errs = self._request('PUT', f'build-runs/{run_name}/terminate', params=filters or None, scheuma=models.StagedRunSchema)
+        terminate_build_run_err = models.ErrorResponse(detail=f"Failed to terminate build run '{run_name}'!")
+        return obj if isinstance(obj, models.StagedRunSchema) else errs or terminate_build_run_err
     
     def retry_build_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        response, errs = self._put(f'build-runs/{run_name}/retry', params=filters or None)
-        return errs if errs else models.StagedRunSchema(**response.json())
+        obj, errs = self._request('PUT', f'build-runs/{run_name}/retry', params=filters or None)
+        retry_build_run_err = models.ErrorResponse(detail=f"Failed to retry build run '{run_name}'!")
+        return obj if isinstance(obj, models.StagedRunSchema) else errs or retry_build_run_err
     
     def list_routes(self, **filters) -> list[models.RouteSchema] | models.ErrorResponse:
-        response, errs = self._get('routes', params=filters or None)
-        if not errs:
-            return [models.RouteSchema(**route) for route in response.json()]
-        else:
-            return errs
+        obj, errs = self._request('GET', 'routes', params=filters or None)
+        list_routes_err = models.ErrorResponse(detail="Failed to list routes!")
+        return obj if isinstance(obj, list) else errs or list_routes_err
+        
     
     def get_route(self, route_name: str) -> models.RouteSchema | models.ErrorResponse:
-        response, errs = self._get(f'routes/{route_name}')
-        return errs if errs else models.RouteSchema(**response.json())
+        obj, errs = self._request('GET', f'routes/{route_name}')
+        get_route_err = models.ErrorResponse(detail=f"Failed to get route '{route_name}'!")
+        return obj if isinstance(obj, models.RouteSchema) else errs or get_route_err
     
-    def get_build_run_logs(self, run_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
+    def _get_logs(self, 
+        run_name: str, 
+        lines: int, 
+        follow: bool, 
+        endpoint: Literal['task-runs', 'pipeline-runs', 'build-runs', 'routes'],
+        **filters
+    ) -> Iterable[str|models.ErrorResponse]:
         filters['follow'] = follow
         filters['tail'] = lines
-        response, errs = self._get(
-            f'build-runs/{run_name}/logs', 
+        response, errs = self._request('GET', 
+            f'{endpoint}/{run_name}/logs', 
             params=filters or None,
             stream=True
         )
-        if response.ok:
+        if isinstance(response, requests.Response) and response.ok:
             for line in response.iter_lines():
-                yield line
+                yield line.decode('utf-8') if line else ''
         else:
             yield errs if errs else models.ErrorResponse(detail=response.text)
-
+    
+    def get_build_run_logs(self, run_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
+        yield from self._get_logs(
+            run_name=run_name, 
+            lines=lines, 
+            follow=follow, 
+            endpoint='build-runs', 
+            **filters
+        )
 
     def get_task_run_logs(self, run_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
-        filters['follow'] = follow
-        filters['tail'] = lines
-        response, errs = self._get(
-            f'task-runs/{run_name}/logs', 
-            params=filters or None,
-            stream=True
+        yield from self._get_logs(
+            run_name=run_name, 
+            lines=lines, 
+            follow=follow, 
+            endpoint='task-runs', 
+            **filters
         )
-        if response.ok:
-            for line in response.iter_lines():
-                yield line
-        else:
-            yield errs if errs else models.ErrorResponse(detail=response.text)
 
     def get_pipeline_run_logs(self, run_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
-        filters['follow'] = follow
-        filters['tail'] = lines
-        response, errs = self._get(
-            f'pipeline-runs/{run_name}/logs', 
-            params=filters or None,
-            stream=True
+        yield from self._get_logs(
+            run_name=run_name, 
+            lines=lines, 
+            follow=follow, 
+            endpoint='pipeline-runs', 
+            **filters
         )
-        if response.ok:
-            for line in response.iter_lines():
-                yield line
-        else:
-            yield errs if errs else models.ErrorResponse(detail=response.text)
     
     def get_route_logs(self, route_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
-        filters['follow'] = follow
-        filters['tail'] = lines
-        response, errs = self._get(
-            f'routes/{route_name}/logs', 
-            params=filters or None,
-            stream=True
+        yield from self._get_logs(
+            run_name=route_name, 
+            lines=lines, 
+            follow=follow, 
+            endpoint='routes', 
+            **filters
         )
-        if response.ok:
-            for line in response.iter_lines():
-                yield line
-        else:
-            yield errs if errs else models.ErrorResponse(detail=response.text)
         
     
     def update_route_thumbnail(self, route_name: str, thumbnail: click.File) -> models.RouteSchema | models.ErrorResponse:
         files = {'thumbnail': thumbnail}
-        response, errs = self._post(f'routes/{route_name}/thumbnail', files=files)
-        return errs if errs else models.RouteSchema(**response.json())
+        obj, errs = self._request('POST',f'routes/{route_name}/thumbnail', files=files, schema=models.RouteSchema)
+        update_route_thumbnail_err = models.ErrorResponse(detail=f"Failed to update route '{route_name}' thumbnail!")
+        return obj if isinstance(obj, models.RouteSchema) else errs or update_route_thumbnail_err
     
     def validate(self, specfile: str) -> models.ProjectSpec | models.ErrorResponse:
         resp = self.load_spec(specfile)
@@ -596,29 +636,32 @@ class PRAXClient:
                 by_alias=True,
                 mode='json'
             )
-            response, errs = self._post('validate', json=spec_dict)
-            return errs if errs else models.ProjectSpec(**response.json())
+            obj, errs = self._request('POST','validate', json=spec_dict, schema=models.ProjectSpec)
+            err = models.ErrorResponse(detail="Failed to validate project spec!")
+            return obj if isinstance(obj, models.ProjectSpec) else errs or err
         
     def allow_project(self, 
         project_name: str, 
         permissions: models.ResourcePermissionsSchema, 
         **filters
     ) -> models.ResourcePermissionsSchema | models.ErrorResponse:
-        response, errs = self._post(
+        obj, errs = self._request('POST',
             f'projects/{project_name}/permissions',
             params=filters or None, 
             json=permissions.model_dump()
         )
-        return errs if errs else models.ResourcePermissionsSchema(**response.json())
+        allow_project_err = models.ErrorResponse(detail=f"Failed to allow project '{project_name}'!")
+        return obj if isinstance(obj, models.ResourcePermissionsSchema) else errs or allow_project_err
     
     def allow_route(self, 
         route_name: str, 
         permissions: models.ResourcePermissionsSchema, 
         **filters
     ) -> models.ResourcePermissionsSchema | models.ErrorResponse:
-        response, errs = self._post(
+        obj, errs = self._request('POST',
             f'routes/{route_name}/permissions',
             params=filters or None, 
             json=permissions.model_dump()
         )
-        return errs if errs else models.ResourcePermissionsSchema(**response.json())
+        allow_route_err = models.ErrorResponse(detail=f"Failed to allow route '{route_name}'!")
+        return obj if isinstance(obj, models.ResourcePermissionsSchema) else errs or allow_route_err
