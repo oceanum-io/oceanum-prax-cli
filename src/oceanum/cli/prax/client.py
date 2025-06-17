@@ -186,11 +186,11 @@ class PRAXClient:
             builds = spec.resources.builds if spec.resources else None
             
             if not builds:
-                click.echo(f" {chk} No builds found in project '{project.name}'!")
                 return True
 
-            click.echo(f" {spin} Checking builds for project '{project.name}'...")
-            time.sleep(15)
+            click.echo(f" {spin} Waiting for build-run status...")
+            time.sleep(10)
+            to_finish_msg = False
             while True:
                 time.sleep(self._lag)
                 project_builds = get_builds(project)
@@ -211,7 +211,9 @@ class PRAXClient:
                             click.echo(f" {chk} Build '{build.name}-{build.stage}' finished successfully!")
                     break
                 elif running_builds:
-                    click.echo(f" {spin} Waiting for builds to finish...")
+                    if not to_finish_msg:
+                        click.echo(f" {spin} Waiting for builds to finish, this can take several minutes...")
+                        to_finish_msg = True
                     continue
         else:
             click.echo(f" {err} Failed to get project details!")
@@ -222,33 +224,46 @@ class PRAXClient:
         counter = 0
         click.echo(f' {spin} Waiting for all stages to finish updating...')
         while True:
+            counter += 1
             project = self.get_project(**params)
             if isinstance(project, models.ProjectDetailsSchema):
                 project_name = project.name if project else 'unknown'
-                stages = project.stages if project else []
-                updating = any([s.status in ['building'] for s in stages])
+                stages = project.stages or []
                 all_finished = all([s.status in ['healthy', 'error'] for s in stages])
-                if updating:
-                    time.sleep(self._lag)
-                    continue
-                elif all_finished:
+                if all_finished:
                     click.echo(f" {chk} Project '{project_name}' finished being updated!")
                     break
+                elif counter > 10:
+                    routes_error = False
+                    # Check for routes with errors
+                    for stage in stages:
+                        if stage.resources:
+                            for route in stage.resources.routes:
+                                if getattr(route.next_revision_status,'root',route.next_revision_status) in ['error']:
+                                    click.echo(f" {err} Route '{route.name}' at revision #{project.last_revision.number} failed to start!")
+                                    msg = (route.details or {}).get('message', 'No error message provided')
+                                    click.echo(f" {wrn} See container error details:{os.linesep}{os.linesep}{msg}")
+                                    routes_error = True
+                    if routes_error:
+                        break
                 else:
                     time.sleep(self._lag)
-                    counter += 1
-    
+
     def _check_routes(self, **params):
         project = self.get_project(**params)
         if isinstance(project, models.ProjectDetailsSchema):
             project_name = project.name if project else 'unknown'
             for stage in project.stages:
                 for route in stage.resources.routes:
-                    urls = [f"https://{d}/" for d in route.custom_domains] + [route.url]
-                    if route.status == 'error':
-                        click.echo(f" {err} Route '{route.name}' at stage '{route.stage}' failed to start!")
-                        click.echo(f"Status is {_frs(route.status)}, inspect deployment with 'oceanum PRAX inspect project {project_name}'!")
-                    else:
+                    urls = [f"https://{d}" for d in route.custom_domains] + [route.url]
+                    if route.next_revision_status and str(route.next_revision_status) in ['error']:
+                        click.echo(f" {err} Route '{route.name}' at revision #{project.last_revision.number} failed to start!")
+                        if route.details:
+                            msg = route.details.get('message', 'No error message provided')
+                        else:
+                            msg = 'No error details provided'
+                        click.echo(f" {wrn} Error details:{os.linesep}{os.linesep}{msg}")
+                    if route.status in ['online', 'offline']:
                         s = 's' if len(urls) > 1 else ''
                         click.echo(f" {chk} Route '{route.name}' is {_frs(route.status)} and available at URL{s}:")
                         for url in urls:
@@ -356,8 +371,7 @@ class PRAXClient:
                 self._wait_stages_finish_updating(**params)
                 self._check_routes(**params)
             delta = timedelta(seconds=time.time()-self._deploy_start_time)
-            with_error = "(with errors) " if not all([committed, started_updating, build_succeeded]) else " "
-            click.echo(f" {watch} Deployment finished {with_error}in {humanize.naturaldelta(delta)}.")
+            click.echo(f" {watch} Deployment finished {humanize.naturaldelta(delta)}.")
         return True
     
     @classmethod
@@ -533,28 +547,32 @@ class PRAXClient:
             return models.ErrorResponse(detail="Failed to submit build!")
     
     def get_build_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        obj, errs = self._request('GET', f'build-runs/{run_name}', params=filters or None, schema=models.StagedRunSchema)
+        obj, errs = self._request('GET', f'build-runs/{run_name}', params=filters or None, 
+                                  schema=models.StagedRunSchema)
         get_build_run_err = models.ErrorResponse(detail=f"Failed to get build run '{run_name}'!")
         return obj if isinstance(obj, models.StagedRunSchema) else errs or get_build_run_err
     
     def terminate_build_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        obj, errs = self._request('PUT', f'build-runs/{run_name}/terminate', params=filters or None, scheuma=models.StagedRunSchema)
+        obj, errs = self._request('PUT', f'build-runs/{run_name}/terminate', params=filters or None, 
+                                  scheuma=models.StagedRunSchema)
         terminate_build_run_err = models.ErrorResponse(detail=f"Failed to terminate build run '{run_name}'!")
         return obj if isinstance(obj, models.StagedRunSchema) else errs or terminate_build_run_err
     
     def retry_build_run(self, run_name: str, **filters) -> models.StagedRunSchema | models.ErrorResponse:
-        obj, errs = self._request('PUT', f'build-runs/{run_name}/retry', params=filters or None)
+        obj, errs = self._request('PUT', f'build-runs/{run_name}/retry', params=filters or None, 
+                                  schema=models.StagedRunSchema)
         retry_build_run_err = models.ErrorResponse(detail=f"Failed to retry build run '{run_name}'!")
         return obj if isinstance(obj, models.StagedRunSchema) else errs or retry_build_run_err
     
     def list_routes(self, **filters) -> list[models.RouteSchema] | models.ErrorResponse:
-        obj, errs = self._request('GET', 'routes', params=filters or None, schema=models.RouteSchema)
+        obj, errs = self._request('GET', 'routes', params=filters or None, 
+                                  schema=models.RouteSchema)
         list_routes_err = models.ErrorResponse(detail="Failed to list routes!")
         return obj if isinstance(obj, list) else errs or list_routes_err
-        
     
     def get_route(self, route_name: str) -> models.RouteSchema | models.ErrorResponse:
-        obj, errs = self._request('GET', f'routes/{route_name}')
+        obj, errs = self._request('GET', f'routes/{route_name}', 
+                                  schema=models.RouteSchema)
         get_route_err = models.ErrorResponse(detail=f"Failed to get route '{route_name}'!")
         return obj if isinstance(obj, models.RouteSchema) else errs or get_route_err
     

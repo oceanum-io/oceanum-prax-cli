@@ -56,7 +56,7 @@ def list_routes(ctx: click.Context, output: str, open_access: bool, current_org:
     if not routes:
         click.echo(f' {wrn} No routes found!')
     elif isinstance(routes, models.ErrorResponse):
-        click.echo(f"{err} Error fetching routes:")
+        click.echo(f" {err} Error fetching routes:")
         echoerr(routes)
         sys.exit(1)
     else:
@@ -93,15 +93,17 @@ def describe_route(ctx: click.Context, route_name: str):
             RenderField(label='Service', path='$.service_name'),
             RenderField(label='Stage', path='$.stage'),
             RenderField(label='Org', path='$.org'),
-            RenderField(label='Owner', path='$.username'),
             RenderField(label='Default URL', path='$.url'),
             RenderField(label='Created At', path='$.created_at'),
             RenderField(label='Updated At', path='$.updated_at'),
+            RenderField(label='Current Revision', path='$.revision'),
+            RenderField(label='Next Revision', path='$.next_revision'),
+            RenderField(label='Next Revision Status', path='$.next_revision_status'),
             RenderField(
                 label='Custom Domains', 
                 path='$.custom_domains.*', 
                 sep=linesep, 
-                mod=lambda x: f'https://{x}/' if x else None
+                mod=lambda x: f'https://{x}' if x else None
             ),
             RenderField(label='Publish App', path='$.publish_app'),
             RenderField(label='Open Access', path='$.open_access'),
@@ -116,7 +118,7 @@ def describe_route(ctx: click.Context, route_name: str):
             Renderer(data=[route], fields=fields).render(output_format='table', tablefmt='plain')
         )
     else:
-        click.echo(f"{wrn} Error fetching route:")
+        click.echo(f" {err} Error fetching route:")
         echoerr(route)
         sys.exit(1)
 
@@ -187,7 +189,7 @@ def get_route_logs(ctx: click.Context, route_name: str, lines: int, follow: bool
     client = PRAXClient(ctx)
     for line in client.get_route_logs(route_name, lines, follow):
         if isinstance(line, models.ErrorResponse):
-            click.echo(f"{wrn} Error fetching logs:")
+            click.echo(f" {err} Error fetching logs:")
             echoerr(line)
             sys.exit(1)
         click.echo(line)

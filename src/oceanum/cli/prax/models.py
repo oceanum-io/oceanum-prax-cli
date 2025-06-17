@@ -157,7 +157,7 @@ class ValidationErrorDetail(BaseModel):
 
 class RouteFilterSchema(BaseModel):
     user: Optional[str] = Field(
-        default=None, description='Filter by owner email', title='User'
+        default=None, description='Filter by project owner email', title='User'
     )
     org: Optional[str] = Field(
         default=None, description='Filter by org name', title='Org'
@@ -189,6 +189,33 @@ class RouteFilterSchema(BaseModel):
 
 class ObjectRef(RootModel[str]):
     root: str = Field(..., max_length=255, title='Object Ref')
+
+
+class Revision(RootModel[str]):
+    root: str = Field(
+        ...,
+        description="The latest Service's Ready Revision for the Route",
+        max_length=255,
+        title='Revision',
+    )
+
+
+class NextRevision(RootModel[str]):
+    root: str = Field(
+        ...,
+        description="The next Service's revision to be updated",
+        max_length=255,
+        title='Next Revision',
+    )
+
+
+class NextRevisionStatus(RootModel[str]):
+    root: str = Field(
+        ...,
+        description="The next revision's status",
+        max_length=20,
+        title='Next Revision Status',
+    )
 
 
 class ServiceName(RootModel[str]):
@@ -234,6 +261,21 @@ class RouteSchema(BaseModel):
         default=False,
         description='Whether the access to this App or Service is open to anyone in the Internet.',
         title='Open Access',
+    )
+    revision: Optional[Revision] = Field(
+        default=None,
+        description="The latest Service's Ready Revision for the Route",
+        title='Revision',
+    )
+    next_revision: Optional[NextRevision|str] = Field(
+        default=None,
+        description="The next Service's revision to be updated",
+        title='Next Revision',
+    )
+    next_revision_status: Optional[NextRevisionStatus|str] = Field(
+        default='pending',
+        description="The next revision's status",
+        title='Next Revision Status',
     )
     status: str = Field(
         default='pending',
@@ -529,8 +571,8 @@ class CyclicDag(BaseModel):
         description='The end cycle in UTC of the DAG as an iso8601 string i.e. YYYY-MM-DDTHH:MM:SSZ with or without timezone info. If no timezone is provided, it will be treated as UTC (Z suffix).',
         title='Endcycle',
     )
-    frequency: Optional[Frequency] = Field(
-        default=None,
+    frequency: Frequency = Field(
+        ...,
         description='The frequency occurrence of each DAG cycle, e.g. @hourly, @daily, @weekly, @monthly, @yearly',
         title='Frequency',
     )
@@ -547,6 +589,12 @@ class CyclicDag(BaseModel):
         gt=0,
         title='Parallelchunks',
     )
+
+
+class DatasourceActionType(Enum):
+    created = 'created'
+    updated = 'updated'
+    deleted = 'deleted'
 
 
 class DockerImageURL(RootModel[str]):
@@ -1183,17 +1231,17 @@ class StageBuildStatus(BaseModel):
         description='The last image digest used to build this stage',
         title='Last Image Digest',
     )
-    git_repo_ref: Optional[str] = Field(
+    git_ref: Optional[str] = Field(
         default=None,
-        alias='gitRepoRef',
-        description='The source repository reference that triggered this update if has a sourceRef',
+        alias='gitRef',
+        description='The source repository branch or tag that triggered this update if has a sourceRef',
         title='Source Repository Reference',
     )
     commit_sha: Optional[str] = Field(
         default=None,
         alias='commitSHA',
         description='The source repository commit SHA reference that triggered this update if has a sourceRef',
-        title='Source Commit Reference',
+        title='Source Commit SHA',
     )
     updated_at: Optional[datetime] = Field(
         default=None,
@@ -1238,6 +1286,54 @@ class Service(RootModel[str]):
 
 class Notebook(Service):
     pass
+
+
+class SourceRef1(RootModel[str]):
+    root: str = Field(
+        ...,
+        description='The source repository reference that triggered this update if has a sourceRef',
+        max_length=255,
+        min_length=1,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
+        title='Source Repository Reference',
+    )
+
+
+class StageSourceStatus(BaseModel):
+    name: str = Field(
+        ...,
+        description='The name of the source repository that triggered this update',
+        title='Stage Source Name',
+    )
+    source_ref: Optional[SourceRef1] = Field(
+        default=None,
+        alias='sourceRef',
+        description='The source repository reference that triggered this update if has a sourceRef',
+        title='Source Repository Reference',
+    )
+    commit_sha: Optional[str] = Field(
+        default=None,
+        alias='commitSHA',
+        description='The source repository commit SHA reference that triggered this update if has a sourceRef',
+        title='Source Commit Reference',
+    )
+    latest_tag: Optional[str] = Field(
+        default=None,
+        alias='latestTag',
+        description='The latest source repository tag that triggered this update if has a sourceRef',
+        title='Latest Source Tag',
+    )
+    branch: Optional[str] = Field(
+        default=None,
+        description='The source repository branch that triggered this update if has a sourceRef',
+        title='Source Repository Branch',
+    )
+    updated_at: Optional[datetime] = Field(
+        default=None,
+        alias='updatedAt',
+        description='The time this push event was received if has a sourceRef',
+        title='Source Commit Time',
+    )
 
 
 class Status(Enum):
@@ -1317,6 +1413,18 @@ class StepRef(BaseModel):
         description='ArtifactName is the name of the output artifact from a previous step template',
         title='Artifactref',
     )
+
+
+class StorageEventType(Enum):
+    created = 'created'
+    modified = 'modified'
+    deleted = 'deleted'
+
+
+class StorageProtocol(Enum):
+    ftp = 'ftp'
+    s3 = 's3'
+    oceanum = 'oceanum'
 
 
 class TaskParameter(BaseModel):
@@ -1546,7 +1654,7 @@ class JSONPatchOpSchema(BaseModel):
 
 class SearchStagedResourceFilterSchema(BaseModel):
     user: Optional[str] = Field(
-        default=None, description='Filter by owner email', title='User'
+        default=None, description='Filter by project owner email', title='User'
     )
     org: Optional[str] = Field(
         default=None, description='Filter by org name', title='Org'
@@ -1566,7 +1674,7 @@ class SearchStagedResourceFilterSchema(BaseModel):
 
 class StagedResourceFilterSchema(BaseModel):
     user: Optional[str] = Field(
-        default=None, description='Filter by owner email', title='User'
+        default=None, description='Filter by project owner email', title='User'
     )
     org: Optional[str] = Field(
         default=None, description='Filter by org name', title='Org'
@@ -1600,6 +1708,57 @@ class TaskRunsSchema(BaseModel):
 
 class SubmitForm(BaseModel):
     parameters: dict[str, Any] = Field(..., title='Parameters')
+
+
+class RunFilterSchema(BaseModel):
+    user: Optional[str] = Field(
+        default=None, description='Filter by project owner email', title='User'
+    )
+    org: Optional[str] = Field(
+        default=None, description='Filter by org name', title='Org'
+    )
+    project: Optional[str] = Field(
+        default=None, description='Filter by project name', title='Project'
+    )
+    stage: Optional[str] = Field(
+        default=None, description='Filter by stage name', title='Stage'
+    )
+    name: Optional[str] = Field(
+        default=None, description='Filter by Build, Task or Pipeline name', title='Name'
+    )
+    created_after: Optional[datetime] = Field(
+        default=None,
+        description='Filter by creation time (ISO format)',
+        title='Created After',
+    )
+    created_before: Optional[datetime] = Field(
+        default=None,
+        description='Filter by creation time (ISO format)',
+        title='Created Before',
+    )
+    started_after: Optional[datetime] = Field(
+        default=None,
+        description='Filter by start time (ISO format)',
+        title='Started After',
+    )
+    started_before: Optional[datetime] = Field(
+        default=None,
+        description='Filter by end time (ISO format)',
+        title='Started Before',
+    )
+    finished_after: Optional[datetime] = Field(
+        default=None,
+        description='Filter by finish time (ISO format)',
+        title='Finished After',
+    )
+    finished_before: Optional[datetime] = Field(
+        default=None,
+        description='Filter by finish time (ISO format)',
+        title='Finished Before',
+    )
+    status: Optional[str] = Field(
+        default=None, description='Filter by run status', title='Status'
+    )
 
 
 class PipelineRunsSchema(BaseModel):
@@ -1765,11 +1924,10 @@ class DatasourceEventTrigger(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    action_type: str = Field(
-        default='updated',
+    action_type: DatasourceActionType = Field(
+        default='created',
         alias='actionType',
         description='actionType is the event action to trigger the pipeline, e.g. "created", "updated", "deleted"',
-        pattern='^(created|updated|deleted)$',
         title='Datasource Event Action Type',
     )
     id_filters: Optional[list[str]] = Field(
@@ -1972,26 +2130,6 @@ class PipelineTaskParameter(BaseModel):
     )
 
 
-class PipelineTriggers(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    cron: Optional[PipelineCronTrigger] = Field(
-        default=None, description='Cron expression for triggering the pipeline'
-    )
-    pipeline_phase: Optional[list[PipelinePhaseEventSource]] = Field(
-        default=None,
-        alias='pipelinePhase',
-        description='Trigger this pipeline when other pipeline phase from same project is reached',
-        title='Pipelinephase',
-    )
-    datasource_event: Optional[DatasourceEventTrigger] = Field(
-        default=None,
-        alias='datasourceEvent',
-        description='Trigger this pipeline when a Datamesh Datasource event is emitted',
-    )
-
-
 class PipelineVolume(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -2086,6 +2224,12 @@ class ServiceRouteSpec(BaseModel):
 
 
 class StageStatusSpec(BaseModel):
+    source_status: Optional[list[StageSourceStatus]] = Field(
+        default=None,
+        alias='sourceStatus',
+        description='Current Source Repository information about this deployment Stage',
+        title='Stage Source Status',
+    )
     build_status: Optional[list[StageBuildStatus]] = Field(
         default=None,
         alias='buildStatus',
@@ -2097,6 +2241,47 @@ class StageStatusSpec(BaseModel):
         alias='syncStatus',
         description='Current Sync information about this deployment Stage',
         title='Stage Sync Status',
+    )
+
+
+class StorageEventTrigger(BaseModel):
+    """
+    StorageEventTrigger is a trigger that is fired when a storage event occurs.
+    It can be used to trigger a pipeline when a file is created, modified or
+    deleted in the Oceanum Storage service.
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    event_type: list[StorageEventType] = Field(
+        default=['created', 'modified'],
+        alias='eventType',
+        description='eventType is the event action to trigger the pipeline, e.g. "created", "modified" or "deleted"',
+        title='Storage Event Type',
+    )
+    protocol_filters: Optional[list[StorageProtocol]] = Field(
+        default=None,
+        alias='protocolFilters',
+        description='Protocol is the transfer protocol to filter by, e.g. "s3", "ftp" and "oceanum" are supported. ',
+        title='Storage Protocol Filters',
+    )
+    object_filters: list[str] = Field(
+        ...,
+        alias='objectFilters',
+        description='objectFilters is a list of object paths to filter by, the paths are the full path to the object in the storage, e.g. "path/to/object.txt"or a regular expression (starting with "^")or using a glob wildcard "*" to match multiple objects.',
+        title='Storage Object Filter',
+    )
+    time_filter: Optional[TimeFilter] = Field(
+        default=None,
+        alias='timeFilter',
+        description='timeFilter is the time filter to limit the events that will trigger the pipeline, only events that occur after Start and before Stop will pass this filter',
+        title='Event Time Filter',
+    )
+    parameters: Optional[list[PipelineTriggerParameter]] = Field(
+        default=None,
+        description="Propagate values from the event parameters into the triggered pipeline parameters values, the event parameters are 'protocol', 'eventType', 'object' and 'timestamp'.",
+        title='Pipeline Trigger Parameters',
     )
 
 
@@ -2223,10 +2408,7 @@ class StageResourcesSchema(BaseModel):
     pipelines: list[PipelineSchema] = Field(..., title='Pipelines')
     tasks: list[TaskSchema] = Field(..., title='Tasks')
     sources: list[SourceSchema] = Field(..., title='Sources')
-    name: str = Field(..., max_length=255, title='Name')
-    spec_dict: Optional[dict[str, Any]] = Field(
-        default=None, description='Staged resources spec dict', title='Spec Dict'
-    )
+    id: Optional[int] = Field(default=None, title='ID')
 
 
 class ProjectItemSchema(BaseModel):
@@ -2385,15 +2567,51 @@ class PipelineTaskArguments(BaseModel):
     )
 
 
+class PipelineTriggers(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    cron: Optional[PipelineCronTrigger] = Field(
+        default=None, description='Cron expression for triggering the pipeline'
+    )
+    pipeline_phase: Optional[list[PipelinePhaseEventSource]] = Field(
+        default=None,
+        alias='pipelinePhase',
+        description='Trigger this pipeline when other pipeline phase from same project is reached',
+        title='Pipelinephase',
+    )
+    datasource_event: Optional[DatasourceEventTrigger] = Field(
+        default=None,
+        alias='datasourceEvent',
+        description='Trigger this pipeline when a Datamesh Datasource event is emitted',
+    )
+    storage_event: Optional[StorageEventTrigger] = Field(
+        default=None,
+        alias='storageEvent',
+        description='Trigger this pipeline when a Storage event is emitted',
+    )
+
+
 class StageDetailsSchema(BaseModel):
     id: str = Field(..., description='The unique identifier of the stage', title='ID')
     name: str = Field(..., max_length=255, title='Name')
     status: str = Field(default='created', max_length=20, title='Status')
     error_message: str = Field(default='', title='Error Message')
     updated_at: datetime = Field(..., title='Updated At')
-    resources: StageResourcesSchema
-    spec: dict[str, Any] = Field(
-        default={}, description='The project spec rendered for stage', title='Spec'
+    resources: Optional[StageResourcesSchema] = Field(
+        default=None,
+        description='The staged resources status details for the stage.',
+        title='Resources',
+    )
+    spec: Optional[dict[str, Any]] = Field(
+        default=None,
+        description='The project spec resources rendered for the stage, including stage overlays and defaults',
+        title='Staged Resources Spec',
+    )
+    current_revision: int = Field(
+        default=0,
+        description='The current revision number of the stage',
+        title='Current Revision',
     )
 
 

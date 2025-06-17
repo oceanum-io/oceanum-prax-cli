@@ -4,7 +4,7 @@ import click
 
 from oceanum.cli.common.renderer import Renderer, output_format_option, RenderField
 from oceanum.cli.auth import login_required
-from oceanum.cli.common.symbols import chk, err, spin
+from oceanum.cli.common.symbols import chk, err, spin, wrn
 from oceanum.cli.common.utils import format_dt
 
 from . import models
@@ -74,9 +74,9 @@ def list_pipelines(ctx: click.Context, output: str, **filters):
         ),
     ]
     if not pipelines:
-        click.echo('No pipelines found!')
+        click.echo(f' {wrn} No pipelines found!')
     elif isinstance(pipelines, models.ErrorResponse):
-        click.echo(f"{err} Error fetching pipelines:")
+        click.echo(f" {err} Error fetching pipelines:")
         echoerr(pipelines)
         sys.exit(1)
     else:
@@ -99,9 +99,9 @@ def list_tasks(ctx: click.Context, output: str, **filters):
     client = PRAXClient(ctx)
     tasks =  client.list_tasks(**filters)
     if not tasks:
-        click.echo('No tasks found!')
+        click.echo(f' {wrn} No tasks found!')
     elif isinstance(tasks, models.ErrorResponse):
-        click.echo(f"{err} Error fetching tasks:")
+        click.echo(f" {err} Error fetching tasks:")
         echoerr(tasks)
         sys.exit(1)
     else:
@@ -160,7 +160,7 @@ def describe_task(ctx: click.Context, name: str, **filters):
                     indent=2
                 ).render(output_format='yaml'))
     else:
-        click.echo(f"{err} Error fetching task:")
+        click.echo(f" {err} Error fetching task:")
         echoerr(task)
         sys.exit(1)
 
@@ -178,13 +178,13 @@ def submit_task(ctx: click.Context, name: str, parameter: list[str]|None, **filt
     task = client.get_task(name, **filters)
     
     if isinstance(task, models.ErrorResponse):
-        click.echo(f"{err} Error fetching task:")
+        click.echo(f" {err} Error fetching task:")
         echoerr(task)
         sys.exit(1)
     else:
         resp = client.submit_task(name, parse_parameters(parameter), **filters)
         if isinstance(resp, models.ErrorResponse):
-            click.echo(f"{err} Error submitting task:")
+            click.echo(f" {err} Error submitting task:")
             echoerr(resp)
             sys.exit(1)
         else:
@@ -204,21 +204,21 @@ def terminate_task(ctx: click.Context, name: str, **filters):
     task = client.get_task_run(name)
     
     if isinstance(task, models.ErrorResponse):
-        click.echo(f"{err} Error fetching task:")
+        click.echo(f" {err} Error fetching task:")
         echoerr(task)
         sys.exit(1)
     else:
         click.echo(f" {spin} Terminating task: {name} ...")
         resp = client.terminate_task_run(name, **filters)
         if isinstance(resp, models.ErrorResponse):
-            click.echo(f"{err} Error terminating task:")
+            click.echo(f" {err} Error terminating task:")
             echoerr(resp)
             sys.exit(1)
         else:
             while True:
                 task = client.get_task_run(name)
                 if isinstance(task, models.ErrorResponse):
-                    click.echo(f"{err} Error fetching task:")
+                    click.echo(f" {err} Error fetching task:")
                     echoerr(task)
                     sys.exit(1)
                 elif task and task.status == 'Running':
@@ -240,13 +240,13 @@ def retry_task(ctx: click.Context, name: str, **filters):
     client = PRAXClient(ctx)
     task = client.get_task_run(name)
     if isinstance(task, models.ErrorResponse):
-        click.echo(f"{err} Error fetching task:")
+        click.echo(f" {err} Error fetching task:")
         echoerr(task)
         sys.exit(1)
     else:
         resp = client.retry_task_run(name, **filters)
         if isinstance(resp, models.ErrorResponse):
-            click.echo(f"{err} Error retrying task:")
+            click.echo(f" {err} Error retrying task:")
             echoerr(resp)
             sys.exit(1)
         else:
@@ -267,18 +267,18 @@ def get_task_logs(ctx: click.Context, name: str, lines: int, follow: bool, **fil
     client = PRAXClient(ctx)
     task = client.get_task(name, **filters)
     if isinstance(task, models.ErrorResponse):
-        click.echo(f"{err} Error fetching task:")
+        click.echo(f" {err} Error fetching task:")
         echoerr(task)
         sys.exit(1)
     if task.last_run is None:
-        click.echo(f"{err} No runs found for task '{name}'!")
+        click.echo(f" {err} No active runs found for task '{name}'!")
         sys.exit(1)
 
     latest_run = task.last_run
     click.echo(f"Fetching logs for task run: {latest_run.name} ...")
     for line in client.get_task_run_logs(latest_run.name, lines, follow):
         if isinstance(line, models.ErrorResponse):
-            click.echo(f"{err} Error fetching logs:")
+            click.echo(f" {err} Error fetching logs:")
             echoerr(line)
             sys.exit(1)
         click.echo(line)
@@ -304,9 +304,9 @@ def list_builds(ctx: click.Context, output: str, **filters):
         k: v for k, v in filters.items() if v is not None
     })
     if not builds:
-        click.echo('No builds found!')
+        click.echo(f' {wrn} No builds found!')
     elif isinstance(builds, models.ErrorResponse):
-        click.echo(f"{err} Error fetching builds:")
+        click.echo(f" {err} Error fetching builds:")
         echoerr(builds)
         sys.exit(1)
     else:
@@ -368,7 +368,7 @@ def describe_build(ctx: click.Context, name: str, **filters):
                     indent=2
                 ).render(output_format='yaml'))
     else:
-        click.echo(f"{err} Error fetching build:")
+        click.echo(f" {err} Error fetching build:")
         echoerr(build)
         sys.exit(1)
 
@@ -385,13 +385,13 @@ def submit_build(ctx: click.Context, name: str, parameter: list[str]|None, **fil
     client = PRAXClient(ctx)
     build = client.get_build(name, **filters)
     if isinstance(build, models.ErrorResponse):
-        click.echo(f"{err} Error fetching build:")
+        click.echo(f" {err} Error fetching build:")
         echoerr(build)
         sys.exit(1)
     else:
         resp = client.submit_build(name, parse_parameters(parameter), **filters)
         if isinstance(resp, models.ErrorResponse):
-            click.echo(f"{err} Error submitting build:")
+            click.echo(f" {err} Error submitting build:")
             echoerr(resp)
             sys.exit(1)
         else:
@@ -409,13 +409,13 @@ def terminate_build(ctx: click.Context, name: str, **filters):
     client = PRAXClient(ctx)
     build = client.get_build_run(name)
     if isinstance(build, models.ErrorResponse):
-        click.echo(f"{err} Error fetching build:")
+        click.echo(f" {err} Error fetching build:")
         echoerr(build)
         sys.exit(1)
     else:
         resp = client.terminate_build_run(name, **filters)
         if isinstance(resp, models.ErrorResponse):
-            click.echo(f"{err} Error terminating build:")
+            click.echo(f" {err} Error terminating build:")
             echoerr(resp)
             sys.exit(1)
         else:
@@ -433,13 +433,13 @@ def retry_build(ctx: click.Context, name: str, **filters):
     client = PRAXClient(ctx)
     build = client.get_build_run(name)
     if isinstance(build, models.ErrorResponse):
-        click.echo(f"{err} Error fetching build:")
+        click.echo(f" {err} Error fetching build:")
         echoerr(build)
         sys.exit(1)
     else:
         resp = client.retry_build_run(name, **filters)
         if isinstance(resp, models.ErrorResponse):
-            click.echo(f"{err} Error retrying build:")
+            click.echo(f" {err} Error retrying build:")
             echoerr(resp)
             sys.exit(1)
         else:
@@ -460,18 +460,18 @@ def get_build_logs(ctx: click.Context, name: str, lines: int, follow: bool, **fi
     client = PRAXClient(ctx)
     build = client.get_build(name, **filters)
     if isinstance(build, models.ErrorResponse):
-        click.echo(f"{err} Error fetching build:")
+        click.echo(f" {err} Error fetching build:")
         echoerr(build)
         sys.exit(1)
     if build.last_run is None:
-        click.echo(f"{err} No runs found for build '{name}'!")
+        click.echo(f" {err} No active runs found for build '{name}'!")
         sys.exit(1)
 
     latest_run = build.last_run
     click.echo(f"Fetching logs for build run: {latest_run.name} ...")
     for line in client.get_build_run_logs(latest_run.name, lines, follow):
         if isinstance(line, models.ErrorResponse):
-            click.echo(f"{err} Error fetching logs:")
+            click.echo(f" {err} Error fetching logs:")
             echoerr(line)
             sys.exit(1)
         click.echo(line)
@@ -539,7 +539,7 @@ def describe_pipeline(ctx: click.Context, name: str, **filters):
                 ).render(output_format='yaml'))
 
     else:
-        click.echo(f"{err} Error fetching pipeline:")
+        click.echo(f" {err} Error fetching pipeline:")
         echoerr(pipeline)
         sys.exit(1)
 
@@ -557,13 +557,13 @@ def submit_pipeline(ctx: click.Context, name: str, parameter: list[str]|None, **
     client = PRAXClient(ctx)
     pipeline = client.get_pipeline(name, **filters)
     if isinstance(pipeline, models.ErrorResponse):
-        click.echo(f"{err} Error fetching pipeline:")
+        click.echo(f" {err} Error fetching pipeline:")
         echoerr(pipeline)
         sys.exit(1)
     else:
         resp = client.submit_pipeline(name, parse_parameters(parameter), **filters)
         if isinstance(resp, models.ErrorResponse):
-            click.echo(f"{err} Error submitting pipeline:")
+            click.echo(f" {err} Error submitting pipeline:")
             echoerr(resp)
             sys.exit(1)
         else:
@@ -581,13 +581,13 @@ def terminate_pipeline(ctx: click.Context, name: str, **filters):
     client = PRAXClient(ctx)
     pipeline = client.get_pipeline_run(name, **filters)
     if isinstance(pipeline, models.ErrorResponse):
-        click.echo(f"{err} Error fetching pipeline:")
+        click.echo(f" {err} Error fetching pipeline:")
         echoerr(pipeline)
         sys.exit(1)
     else:
         resp = client.terminate_pipeline_run(name, **filters)
         if isinstance(resp, models.ErrorResponse):
-            click.echo(f"{err} Error terminating pipeline:")
+            click.echo(f" {err} Error terminating pipeline:")
             echoerr(resp)
             sys.exit(1)
         else:
@@ -606,13 +606,13 @@ def retry_pipeline(ctx: click.Context, name: str, **filters):
     client = PRAXClient(ctx)
     pipeline = client.get_pipeline_run(name, **filters)
     if isinstance(pipeline, models.ErrorResponse):
-        click.echo(f"{err} Error fetching pipeline:")
+        click.echo(f" {err} Error fetching pipeline:")
         echoerr(pipeline)
         sys.exit(1)
     else:
         resp = client.retry_pipeline_run(name, **filters)
         if isinstance(resp, models.ErrorResponse):
-            click.echo(f"{err} Error retrying pipeline:")
+            click.echo(f" {err} Error retrying pipeline:")
             echoerr(resp)
             sys.exit(1)
         else:
@@ -632,18 +632,18 @@ def get_pipeline_logs(ctx: click.Context, name: str, lines: int, follow: bool, *
     client = PRAXClient(ctx)
     pipeline = client.get_pipeline(name, **filters)
     if isinstance(pipeline, models.ErrorResponse):
-        click.echo(f"{err} Error fetching pipeline:")
+        click.echo(f" {err} Error fetching pipeline:")
         echoerr(pipeline)
         sys.exit(1)
     if pipeline.last_run is None:
-        click.echo(f"{err} No runs found for pipeline '{name}'!")
+        click.echo(f" {err} No active runs found for pipeline '{name}'!")
         sys.exit(1)
 
     latest_run = pipeline.last_run
     click.echo(f"Fetching logs for pipeline run: {latest_run.name} ...")
     for line in client.get_pipeline_run_logs(latest_run.name, lines, follow, **filters):
         if isinstance(line, models.ErrorResponse):
-            click.echo(f"{err} Error fetching logs:")
+            click.echo(f" {err} Error fetching logs:")
             echoerr(line)
             sys.exit(1)
         click.echo(line)
@@ -660,13 +660,13 @@ def get_pipeline_logs(ctx: click.Context, name: str, lines: int, follow: bool, *
 #     client = PRAXClient(ctx)
 #     pipeline = client.get_pipeline_run(name)
 #     if isinstance(pipeline, models.ErrorResponse):
-#         click.echo(f"{err} Error fetching pipeline:")
+#         click.echo(f" {err} Error fetching pipeline:")
 #         echoerr(pipeline)
 #         sys.exit(1)
 #     else:
 #         resp = client.stop_pipeline_run(name, **filters)
 #         if isinstance(resp, models.ErrorResponse):
-#             click.echo(f"{err} Error stopping pipeline:")
+#             click.echo(f" {err} Error stopping pipeline:")
 #             echoerr(resp)
 #             sys.exit(1)
 #         else:
@@ -685,13 +685,13 @@ def get_pipeline_logs(ctx: click.Context, name: str, lines: int, follow: bool, *
 #     client = PRAXClient(ctx)
 #     pipeline = client.get_pipeline_run(name)
 #     if isinstance(pipeline, models.ErrorResponse):
-#         click.echo(f"{err} Error fetching pipeline:")
+#         click.echo(f" {err} Error fetching pipeline:")
 #         echoerr(pipeline)
 #         sys.exit(1)
 #     else:
 #         resp = client.resume_pipeline_run(name, **filters)
 #         if isinstance(resp, models.ErrorResponse):
-#             click.echo(f"{err} Error resuming pipeline:")
+#             click.echo(f" {err} Error resuming pipeline:")
 #             echoerr(resp)
 #             sys.exit(1)
 #         else:

@@ -39,7 +39,7 @@ def describe_user(ctx: click.Context):
     ]
     users = client.get_users()
     if isinstance(users, models.ErrorResponse):
-        click.echo(f"{err} Error fetching users:")
+        click.echo(f" {err} Error fetching users:")
         echoerr(users)
         return 1
     else:
@@ -61,7 +61,7 @@ def create_user_secret(ctx: click.Context,
     client = PRAXClient(ctx)
     users = client.get_users()
     if isinstance(users, models.ErrorResponse):
-        click.echo(f"{err} Error fetching users:")
+        click.echo(f" {err} Error fetching users:")
         echoerr(users)
         return 1
     else:
@@ -69,10 +69,10 @@ def create_user_secret(ctx: click.Context,
     current_org = org or user.current_org
     
     if not current_org:
-        click.echo(f"{err} No organization specified and user '{user.username}' has no current Org.")
+        click.echo(f" {err} No organization specified and user '{user.username}' has no current Org.")
         return 1
     elif current_org not in user.admin_orgs:
-        click.echo(f"{err} User '{user.username}' is not an admin of Org. '{current_org}'")
+        click.echo(f" {err} User '{user.username}' is not an admin of Org. '{current_org}'")
         return 1
     
     user_org_secrets = []
@@ -80,7 +80,7 @@ def create_user_secret(ctx: click.Context,
     org_spec = [o for o in user.orgs if o.name == current_org]
     
     if not org_spec:
-        click.echo(f"{err} User '{user.username}' is not deployable to Org. '{current_org}'")
+        click.echo(f" {err} User '{user.username}' is not deployable to Org. '{current_org}'")
         return 1
     else:
         org_spec = org_spec[0]
@@ -99,13 +99,13 @@ def create_user_secret(ctx: click.Context,
     try:
         secret_data = {s[0]: s[1] for s in [d.split('=') for d in data]}
     except ValueError:
-        click.echo(f"{err} Error parsing secret data. Please provide key=value pairs.")
+        click.echo(f" {err} Error parsing secret data. Please provide key=value pairs.")
         return 1
 
     secret = client.create_or_update_user_secret(name, current_org, secret_data, description)
 
     if isinstance(secret, models.ErrorResponse):
-        click.echo(f"{err} Error creating user secret:")
+        click.echo(f" {err} Error creating user secret:")
         echoerr(secret)
         return 1
     else:

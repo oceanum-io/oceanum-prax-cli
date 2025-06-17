@@ -126,8 +126,9 @@ def deploy_project(
         'user': user_email
     }
     project = client.get_project(**get_params)
-    click.echo()
-
+    click.echo(f'Using domain: {ctx.obj.token.domain}')
+    click.echo(f'')
+    
     if isinstance(project, models.ProjectDetailsSchema):
         click.echo(f" {spin} Updating existing PRAX Project:")
     else:
