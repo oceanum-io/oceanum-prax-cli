@@ -5,7 +5,6 @@ import time
 from datetime import timedelta
 from pathlib import Path
 from typing import Literal, Optional, Type, Iterable, Any
-from functools import partial
 
 import click
 import humanize
