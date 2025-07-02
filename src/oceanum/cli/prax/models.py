@@ -267,12 +267,12 @@ class RouteSchema(BaseModel):
         description="The latest Service's Ready Revision for the Route",
         title='Revision',
     )
-    next_revision: Optional[NextRevision|str] = Field(
+    next_revision: Optional[NextRevision] = Field(
         default=None,
         description="The next Service's revision to be updated",
         title='Next Revision',
     )
-    next_revision_status: Optional[NextRevisionStatus|str] = Field(
+    next_revision_status: Optional[NextRevisionStatus] = Field(
         default='pending',
         description="The next revision's status",
         title='Next Revision Status',
@@ -2259,6 +2259,12 @@ class StorageEventTrigger(BaseModel):
         alias='eventType',
         description='eventType is the event action to trigger the pipeline, e.g. "created", "modified" or "deleted"',
         title='Storage Event Type',
+    )
+    bucket_filters: Optional[list[str]] = Field(
+        default=None,
+        alias='bucketFilters',
+        description="bucketFilters is a list of Org names to filter by. Defaults to project's Org.",
+        title='Storage Bucket Filter',
     )
     protocol_filters: Optional[list[StorageProtocol]] = Field(
         default=None,
