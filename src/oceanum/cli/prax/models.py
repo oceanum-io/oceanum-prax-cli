@@ -239,7 +239,7 @@ class RouteSchema(BaseModel):
     custom_domains: list[str] = Field(default=[], title='Custom Domains')
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
-    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
+    object_ref: Optional[ObjectRef|str] = Field(default=None, title='Object Ref')
     created_at: datetime = Field(..., title='Created At')
     updated_at: datetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
@@ -262,17 +262,17 @@ class RouteSchema(BaseModel):
         description='Whether the access to this App or Service is open to anyone in the Internet.',
         title='Open Access',
     )
-    revision: Optional[Revision] = Field(
+    revision: Optional[Revision|str] = Field(
         default=None,
         description="The latest Service's Ready Revision for the Route",
         title='Revision',
     )
-    next_revision: Optional[NextRevision] = Field(
+    next_revision: Optional[NextRevision|str] = Field(
         default=None,
         description="The next Service's revision to be updated",
         title='Next Revision',
     )
-    next_revision_status: Optional[NextRevisionStatus] = Field(
+    next_revision_status: Optional[NextRevisionStatus|str] = Field(
         default='pending',
         description="The next revision's status",
         title='Next Revision Status',
@@ -283,7 +283,7 @@ class RouteSchema(BaseModel):
         max_length=20,
         title='Status',
     )
-    service_name: Optional[ServiceName] = Field(
+    service_name: Optional[ServiceName|str] = Field(
         default=None,
         description="The Project's service name for the Route",
         title='Service Name',

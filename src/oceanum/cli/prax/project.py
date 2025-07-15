@@ -208,7 +208,6 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
     last_revision = project.last_revision if isinstance(project, models.ProjectDetailsSchema) else None
     project_spec = last_revision.spec if last_revision is not None else None
     click.echo()
-
     def render_revision(revision: models.RevisionDetailsSchema):
         revision_fields = [
             RenderField(label='Revision', path='$.number'),
