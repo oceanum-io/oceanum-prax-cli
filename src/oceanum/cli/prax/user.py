@@ -24,15 +24,15 @@ def describe_user(ctx: click.Context):
         RenderField(label='Deployable Orgs.', path='$.deployable_orgs.*', sep='\n'),
         RenderField(label='Admin Orgs.', path='$.admin_orgs.*', sep='\n'),
         RenderField(
-            label='Org Tiers', 
-            path='$.orgs.*', 
+            label='Org Tiers',
+            path='$.orgs.*',
             sep='\n',
             mod=lambda x: f"{x['name']}: {x['tier']['name']}"
         ),
         RenderField(label='Deployed Projects', path='$.projects.*', sep='\n'),
         RenderField(
-            label='User Resources', 
-            path='$.orgs.*.resources.*', 
+            label='User Resources',
+            path='$.orgs.*.resources.*',
             sep='\n',
             mod=lambda x: f"{x['org']}/{x['resource_type'].removesuffix('s')}: {x['name']}"
         ),
@@ -52,8 +52,8 @@ def describe_user(ctx: click.Context):
 @click.option('--description', help='Secret description', type=str, default=None)
 @click.option('--data','-d', help='Secret data key=value pairs', type=str, multiple=True)
 @login_required
-def create_user_secret(ctx: click.Context, 
-                       name: str, 
+def create_user_secret(ctx: click.Context,
+                       name: str,
                        org: str|None,
                        description: str|None,
                        data: list[str],
@@ -67,25 +67,25 @@ def create_user_secret(ctx: click.Context,
     else:
         user = users[0]
     current_org = org or user.current_org
-    
+
     if not current_org:
         click.echo(f" {err} No organization specified and user '{user.username}' has no current Org.")
         return 1
     elif current_org not in user.admin_orgs:
         click.echo(f" {err} User '{user.username}' is not an admin of Org. '{current_org}'")
         return 1
-    
+
     user_org_secrets = []
 
     org_spec = [o for o in user.orgs if o.name == current_org]
-    
+
     if not org_spec:
         click.echo(f" {err} User '{user.username}' is not deployable to Org. '{current_org}'")
         return 1
     else:
         org_spec = org_spec[0]
 
-        
+
     for r in org_spec.resources:
         if r.resource_type == 'secret' and r.org == current_org:
             user_org_secrets.append(r.name)
@@ -95,7 +95,7 @@ def create_user_secret(ctx: click.Context,
         if not view:
             click.echo("User secret creation aborted!")
             return 0
-        
+
     try:
         secret_data = {s[0]: s[1] for s in [d.split('=') for d in data]}
     except ValueError:

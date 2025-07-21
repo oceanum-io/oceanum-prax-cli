@@ -1,54 +1,57 @@
+import click
 
-from oceanum.cli.main import main
-
-@main.group(name='prax', help='Oceanum PRAX Projects Management')
-def prax():
+@click.group(help='Oceanum PRAX Projects Management')
+def cli():
+    """Main entry point for prax CLI plugin."""
     pass
 
-@prax.group(name='list', help='List resources')
+# Alias for backward compatibility and plugin interface
+main = cli
+
+@cli.group(name='list', help='List resources')
 def list_group():
     pass
 
-@prax.group(name='describe',help='Describe resources')
+@cli.group(name='describe',help='Describe resources')
 def describe():
     pass
 
-@prax.group(name='delete', help='Delete resources')
+@cli.group(name='delete', help='Delete resources')
 def delete():
     pass
 
-@prax.group(name='update',help='Update resources')
+@cli.group(name='update',help='Update resources')
 def update():
     pass
 
-@prax.group(name='create',help='Create resources')
+@cli.group(name='create',help='Create resources')
 def create():
     pass
 
-@prax.group(name='submit',help='Submit Tasks, Pipelines and Builds runs.')
+@cli.group(name='submit',help='Submit Tasks, Pipelines and Builds runs.')
 def submit():
     pass
 
-@prax.group(name='terminate',help='Terminate Tasks, Pipelines and Builds runs.')
+@cli.group(name='terminate',help='Terminate Tasks, Pipelines and Builds runs.')
 def terminate():
     pass
 
-@prax.group(name='stop',help='Stop Tasks, Pipelines and Builds runs.')
+@cli.group(name='stop',help='Stop Tasks, Pipelines and Builds runs.')
 def stop():
     pass
 
-@prax.group(name='resume',help='Resume Tasks, Pipelines and Builds runs.')
+@cli.group(name='resume',help='Resume Tasks, Pipelines and Builds runs.')
 def resume():
     pass
 
-@prax.group(name='retry',help='Retry Tasks, Pipelines and Builds runs.')
+@cli.group(name='retry',help='Retry Tasks, Pipelines and Builds runs.')
 def retry():
     pass
 
-@prax.group(name='allow',help='Manage resources permissions')
+@cli.group(name='allow',help='Manage resources permissions')
 def allow():
     pass
 
-@prax.group(name='logs',help='View container logs')
+@cli.group(name='logs',help='View container logs')
 def logs():
     pass

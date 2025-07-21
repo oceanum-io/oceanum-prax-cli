@@ -11,9 +11,9 @@ from . import models
 from .main import list_group, describe, submit, terminate, retry, logs
 from .client import PRAXClient
 from .project import (
-    project_org_option, 
-    project_user_option, 
-    project_stage_option, 
+    project_org_option,
+    project_user_option,
+    project_stage_option,
     project_name_option,
     name_argument
 )
@@ -34,20 +34,20 @@ LIST_FIELDS = [
     RenderField(label='Stage', path='$.stage'),
     RenderField(label='Org.', path='$.org'),
     RenderField(
-        label='Last Run', 
-        path='$.last_run', 
+        label='Last Run',
+        path='$.last_run',
         mod=lambda x: frs(x['status']) if x is not None else 'N/A'
     ),
     RenderField(
-        label='Started at', 
-        path='$.last_run', 
+        label='Started at',
+        path='$.last_run',
         mod=lambda x: x['started_at'] if x is not None else 'N/A'
     ),
 ]
 
 @list_group.command(name='pipelines', help='List PRAX Pipelines')
 @click.pass_context
-@click.option('--search', help='Search by names or description', 
+@click.option('--search', help='Search by names or description',
               default=None, type=str)
 @project_org_option
 @project_user_option
@@ -64,10 +64,10 @@ def list_pipelines(ctx: click.Context, output: str, **filters):
             return [f"{icon} {x[1]}"]
         else:
             return ['N/A']
-        
+
     extra_fields = [
         RenderField(
-            label='Schedule', 
+            label='Schedule',
             path='$.["suspended", "schedule"]',
             lmod=format_schedule,
             sep=' '
@@ -81,13 +81,13 @@ def list_pipelines(ctx: click.Context, output: str, **filters):
         sys.exit(1)
     else:
         click.echo(Renderer(
-            data=pipelines, 
+            data=pipelines,
             fields=LIST_FIELDS+extra_fields
         ).render(output_format=output))
 
 @list_group.command(name='tasks', help='List all PRAX Tasks')
 @click.pass_context
-@click.option('--search', help='Search by names or description', 
+@click.option('--search', help='Search by names or description',
               default=None, type=str)
 @project_org_option
 @project_user_option
@@ -135,28 +135,28 @@ def describe_task(ctx: click.Context, name: str, **filters):
     ]
     if isinstance(task, models.TaskSchema):
         click.echo(Renderer(
-            data=[task], 
+            data=[task],
             fields=task_fields
         ).render(output_format='table', tablefmt='plain'))
         if task.last_run:
             click.echo("Last Run:")
             click.echo(Renderer(
-                data=[task.last_run], 
-                fields=run_fields, 
+                data=[task.last_run],
+                fields=run_fields,
                 indent=2
             ).render(output_format='table', tablefmt='plain'))
             if task.last_run.arguments:
                 click.echo("    Arguments:")
                 click.echo(Renderer(
-                    data=[task.last_run.arguments], 
-                    fields=[], 
+                    data=[task.last_run.arguments],
+                    fields=[],
                     indent=4
                 ).render(output_format='yaml'))
             if task.last_run.details:
                 click.echo("  Run Details:")
                 click.echo(Renderer(
-                    data=[task.last_run.details], 
-                    fields=[], 
+                    data=[task.last_run.details],
+                    fields=[],
                     indent=2
                 ).render(output_format='yaml'))
     else:
@@ -176,7 +176,7 @@ def describe_task(ctx: click.Context, name: str, **filters):
 def submit_task(ctx: click.Context, name: str, parameter: list[str]|None, **filters):
     client = PRAXClient(ctx)
     task = client.get_task(name, **filters)
-    
+
     if isinstance(task, models.ErrorResponse):
         click.echo(f" {err} Error fetching task:")
         echoerr(task)
@@ -202,7 +202,7 @@ def submit_task(ctx: click.Context, name: str, parameter: list[str]|None, **filt
 def terminate_task(ctx: click.Context, name: str, **filters):
     client = PRAXClient(ctx)
     task = client.get_task_run(name)
-    
+
     if isinstance(task, models.ErrorResponse):
         click.echo(f" {err} Error fetching task:")
         echoerr(task)
@@ -343,28 +343,28 @@ def describe_build(ctx: click.Context, name: str, **filters):
     ]
     if isinstance(build, models.BuildSchema):
         click.echo(Renderer(
-            data=[build], 
+            data=[build],
             fields=build_fields
         ).render(output_format='table', tablefmt='plain'))
         if build.last_run:
             click.echo("Last Run:")
             click.echo(Renderer(
-                data=[build.last_run], 
-                fields=run_fields, 
+                data=[build.last_run],
+                fields=run_fields,
                 indent=2
             ).render(output_format='table', tablefmt='plain'))
             if build.last_run.arguments:
                 click.echo("    Arguments:")
                 click.echo(Renderer(
-                    data=[build.last_run.arguments], 
-                    fields=[], 
+                    data=[build.last_run.arguments],
+                    fields=[],
                     indent=4
                 ).render(output_format='yaml'))
             if build.last_run.details:
                 click.echo("  Run Details:")
                 click.echo(Renderer(
-                    data=[build.last_run.details], 
-                    fields=[], 
+                    data=[build.last_run.details],
+                    fields=[],
                     indent=2
                 ).render(output_format='yaml'))
     else:
@@ -507,7 +507,7 @@ def describe_pipeline(ctx: click.Context, name: str, **filters):
     ]
     if isinstance(pipeline, models.PipelineSchema):
         click.echo(Renderer(
-            data=[pipeline], 
+            data=[pipeline],
             fields=pipeline_fields
         ).render(output_format='table', tablefmt='plain'))
         # if pipeline.details:
@@ -519,22 +519,22 @@ def describe_pipeline(ctx: click.Context, name: str, **filters):
         if pipeline.last_run:
             click.echo("Last Run:")
             click.echo(Renderer(
-                data=[pipeline.last_run], 
-                fields=run_fields, 
+                data=[pipeline.last_run],
+                fields=run_fields,
                 indent=2
             ).render(output_format='table', tablefmt='plain'))
             if pipeline.last_run.arguments:
                 click.echo("    Arguments:")
                 click.echo(Renderer(
-                    data=[pipeline.last_run.arguments], 
-                    fields=[], 
+                    data=[pipeline.last_run.arguments],
+                    fields=[],
                     indent=4
                 ).render(output_format='yaml'))
             if pipeline.last_run.details:
                 click.echo("  Run Details:")
                 click.echo(Renderer(
-                    data=[pipeline.last_run.details], 
-                    fields=[], 
+                    data=[pipeline.last_run.details],
+                    fields=[],
                     indent=2
                 ).render(output_format='yaml'))
 
