@@ -19,7 +19,7 @@ def update_route():
 
 @list_group.command(name='routes', help='List PRAX Routes')
 @click.pass_context
-@click.option('--search', help='Search by route name, project_name or project description', 
+@click.option('--search', help='Search by route name, project_name or project description',
               default=None, type=str)
 @click.option('--org', help='Organization name', default=None, type=str)
 @click.option('--user', help='Route owner email', default=None, type=str)
@@ -100,20 +100,20 @@ def describe_route(ctx: click.Context, route_name: str):
             RenderField(label='Next Revision', path='$.next_revision'),
             RenderField(label='Next Revision Status', path='$.next_revision_status'),
             RenderField(
-                label='Custom Domains', 
-                path='$.custom_domains.*', 
-                sep=linesep, 
+                label='Custom Domains',
+                path='$.custom_domains.*',
+                sep=linesep,
                 mod=lambda x: f'https://{x}' if x else None
             ),
             RenderField(label='Publish App', path='$.publish_app'),
             RenderField(label='Open Access', path='$.open_access'),
             RenderField(label='Thumbnail URL', path='$.thumbnail'),
             RenderField(label='Status', path='$.status'),
-            RenderField(label='Details', path='$.details', 
+            RenderField(label='Details', path='$.details',
                         mod=lambda x: yaml.dump(x, indent=4) if x else None
             ),
         ]
-            
+
         click.echo(
             Renderer(data=[route], fields=fields).render(output_format='table', tablefmt='plain')
         )
@@ -140,7 +140,7 @@ def update_thumbnail(ctx: click.Context, route_name: str, thumbnail_file: click.
             click.echo(f"Thumbnail updated successfully for route '{route_name}'!")
     else:
         click.echo(f"Route '{route_name}' not found!")
-        
+
 
 @allow.command(name='route')
 @click.argument('route_name', type=str, required=True)
@@ -151,9 +151,9 @@ def update_thumbnail(ctx: click.Context, route_name: str, thumbnail_file: click.
 @click.option('-a','--assign', help='Allow to assign route permissions', default=None, type=bool, is_flag=True)
 @click.pass_context
 @login_required
-def allow_route(ctx: click.Context, route_name: str, group: list[str], 
+def allow_route(ctx: click.Context, route_name: str, group: list[str],
                 user: list[str], view: bool, change: bool, assign: bool):
-    
+
     def _get_perm(subject: str):
         return models.PermissionsSchema(
             subject=subject,

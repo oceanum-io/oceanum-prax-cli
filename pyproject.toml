@@ -7,12 +7,12 @@ name = "oceanum-prax"
 description = "Command-line utility for Oceanum.io PRAX platform"
 readme = "README.rst"
 license = { file = "LICENSE" }
-keywords = ["oceanum", "datamesh", "oceanum.io","prax","ci/cd"]
+keywords = ["oceanum", "datamesh", "oceanum.io", "prax", "ci/cd"]
 authors = [
-  { name = "Oceanum Developers", email="developers@oceanum.science" },
+    { name = "Oceanum Developers", email = "developers@oceanum.science" },
 ]
 maintainers = [
-  {name = "Oceanum Developers", email = "developers@oceanum.science"},
+    { name = "Oceanum Developers", email = "developers@oceanum.science" },
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -29,26 +29,20 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-  "click",
-  "platformdirs",
-  "pydantic[email]",
-  "python-jsonpath",
-  "requests",
-  "tabulate",
-  "humanize",
-  "oceanum>=0.17"
+    "click",
+    "platformdirs",
+    "pydantic[email]",
+    "python-jsonpath",
+    "requests",
+    "tabulate",
+    "humanize",
+    "oceanum>=0.17",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-test = [
-  "pytest",
-  "pytest-cov",
-  "ruff"
-]
-modelgen = [
-  "datamodel-code-generator[http]"
-]
+test = ["pytest", "pytest-cov", "ruff"]
+modelgen = ["datamodel-code-generator[http]"]
 
 [project.urls]
 "Homepage" = "https://oceanum.io/"
@@ -56,12 +50,27 @@ modelgen = [
 "Documentation" = "https://oceanum-python.readthedocs.io/en/latest/"
 "Tracker" = "https://github.com/oceanum-io/oceanum-run-cli/issues"
 
+[project.entry-points."oceanum.cli"]
+"prax" = "oceanum.cli.prax.main"
+
+[project.entry-points."oceanum.cli.prax"]
+"main" = "oceanum.cli.prax.main"
+"project" = "oceanum.cli.prax.project"
+"workflows" = "oceanum.cli.prax.workflows"
+"route" = "oceanum.cli.prax.route"
+"user" = "oceanum.cli.prax.user"
+"client" = "oceanum.cli.prax.client"
+
 [tool.setuptools.dynamic]
-version = {attr = "oceanum.cli.prax.__version__"}
+version = { attr = "oceanum.cli.prax.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src/"]
-include = ["oceanum", "oceanum.cli.prax"]
+include = ["oceanum.cli.prax*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-dir]
+"" = "src"
 
 [tool.distutils.bdist_wheel]
 universal = true

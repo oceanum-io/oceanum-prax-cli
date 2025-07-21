@@ -10,8 +10,9 @@ from click.testing import CliRunner
 
 from datetime import datetime, timezone
 
-from oceanum.cli.main import main
+from oceanum.cli.main import main as oceanum_main
 from oceanum.cli.prax import models, client
+from oceanum.cli.prax.main import cli
 
 runner = CliRunner()
 
@@ -53,13 +54,13 @@ with good_specfile.open() as f:
 
 
 class TestDeleteProject(TestCase):
-    
+
     def test_delete_error(self):
         with patch('oceanum.cli.prax.client.PRAXClient.get_project',
             return_value=project_schema) as mock_get:
-            with patch('oceanum.cli.prax.client.PRAXClient.delete_project', 
+            with patch('oceanum.cli.prax.client.PRAXClient.delete_project',
                 return_value=models.ErrorResponse(detail='test-error')) as mock_delete:
-                result = runner.invoke(main, ['prax', 'delete', 'project', 'test-project'], input='y')
+                result = runner.invoke(oceanum_main, ['prax', 'delete', 'project', 'test-project'], input='y')
                 assert 'Failed to delete' in result.output
                 assert result.exit_code == 1
                 assert mock_delete.call_count == 1
@@ -68,28 +69,28 @@ class TestDeleteProject(TestCase):
         with patch('oceanum.cli.prax.client.PRAXClient.get_project',
             return_value=project_schema) as mock_get:
             with patch('oceanum.cli.prax.client.PRAXClient.delete_project') as mock_delete:
-                result = runner.invoke(main, ['prax', 'delete', 'project', 'test-project'], input='n')
+                result = runner.invoke(oceanum_main, ['prax', 'delete', 'project', 'test-project'], input='n')
                 assert result.exit_code == 1
                 assert mock_delete.call_count == 0
                 assert 'Aborted!' in result.output
-    
+
     def test_delete_project_not_found(self):
         response = MagicMock(status_code=404)
         response.json.return_value = {'detail': 'not found!'}
         response.raise_for_status.side_effect = requests.exceptions.HTTPError('404')
         with patch('requests.request', return_value=response) as mock_request:
-            result = runner.invoke(main, ['prax', 'delete', 'project', 'some-random-project'])
+            result = runner.invoke(oceanum_main, ['prax', 'delete', 'project', 'some-random-project'])
             assert result.exit_code == 1
             assert mock_request.call_count == 1
             assert 'not found!' in result.output
-    
+
     def test_delete_existing_project_error(self):
         response = MagicMock(status_code=403)
         response.json.return_value = {'detail': 'Forbidden!'}
         response.raise_for_status.side_effect = requests.exceptions.HTTPError('403')
         with patch('oceanum.cli.prax.client.PRAXClient.get_project', return_value=project_schema) as mock_get:
             with patch('requests.request', return_value=response) as mock_request:
-                result = runner.invoke(main, ['prax', 'delete', 'project', 'test-project'], input='y')
+                result = runner.invoke(oceanum_main, ['prax', 'delete', 'project', 'test-project'], input='y')
                 assert result.exit_code == 1
                 assert mock_request.call_count == 1
                 assert 'Forbidden!' in result.output
@@ -98,7 +99,7 @@ class TestDeleteProject(TestCase):
         with patch('oceanum.cli.prax.client.PRAXClient.get_project',
             return_value=project_schema) as mock_get:
             with patch('oceanum.cli.prax.client.PRAXClient.delete_project') as mock_delete:
-                result = runner.invoke(main, ['prax', 'delete', 'project', 'test-project'], input='y')
+                result = runner.invoke(oceanum_main, ['prax', 'delete', 'project', 'test-project'], input='y')
                 assert result.exit_code == 0
                 assert mock_delete.call_count == 1
                 assert 'removed shortly' in result.output
@@ -106,20 +107,20 @@ class TestDeleteProject(TestCase):
 class TestListProject(TestCase):
 
     def test_list_error(self):
-        with patch('oceanum.cli.prax.client.PRAXClient.list_projects', 
+        with patch('oceanum.cli.prax.client.PRAXClient.list_projects',
             return_value=models.ErrorResponse(detail='test-error')) as mock_list:
-            result = runner.invoke(main, ['prax', 'list', 'projects'])
+            result = runner.invoke(oceanum_main, ['prax', 'list', 'projects'])
             assert result.exit_code == 1
             assert 'Could not list' in result.output
             mock_list.assert_called_once_with()
-    
+
     def test_list_project_not_found(self):
         with patch('oceanum.cli.prax.client.PRAXClient.list_projects', return_value=[]) as mock_list:
-            result = runner.invoke(main, ['prax', 'list', 'projects'])
+            result = runner.invoke(oceanum_main, ['prax', 'list', 'projects'])
             assert result.exit_code == 1
             assert 'No projects found!' in result.output
             mock_list.assert_called_once_with()
-    
+
 
     def test_list_project(self):
         projects = [
@@ -136,7 +137,7 @@ class TestListProject(TestCase):
         ]
 
         with patch('oceanum.cli.prax.client.PRAXClient.list_projects', return_value=projects) as mock_list:
-            result = runner.invoke(main, ['prax', 'list', 'projects'])
+            result = runner.invoke(oceanum_main, ['prax', 'list', 'projects'])
             assert result.exit_code == 0
             mock_list.assert_called_once_with()
 
@@ -146,10 +147,10 @@ class TestValidateProject(TestCase):
         self.specfile = Path(__file__).parent/'data/dpm-project.yaml'
         self.project_spec = client.PRAXClient.load_spec(str(self.specfile))
         return super().setUp()
-    
+
     def test_validation_error_no_file(self):
         with patch('oceanum.cli.prax.client.PRAXClient.validate') as mock_validate:
-            result = runner.invoke(main, ['prax', 'validate', str('randomfile.yaml')])
+            result = runner.invoke(oceanum_main, ['prax', 'validate', str('randomfile.yaml')])
             assert result.exit_code > 0
             assert 'does not exist' in result.output
 
@@ -163,13 +164,13 @@ class TestValidateProject(TestCase):
                 models.ProjectSpec(**bad_spec) # type: ignore
             except ValidationError as e:
                 mock_validate.return_value = models.ErrorResponse(detail=e.errors()) # type: ignore
-            result = runner.invoke(main, ['prax', 'validate', str(self.specfile)], catch_exceptions=True)
+            result = runner.invoke(oceanum_main, ['prax', 'validate', str(self.specfile)], catch_exceptions=True)
             assert result.exit_code > 0
             assert 'Extra inputs are not permitted' in result.output
 
     def test_validate_specfile(self):
         with patch('oceanum.cli.prax.client.PRAXClient.validate') as mock_validate:
-            result = runner.invoke(main, ['prax','validate', str(self.specfile)], catch_exceptions=True)
+            result = runner.invoke(oceanum_main, ['prax','validate', str(self.specfile)], catch_exceptions=True)
             assert result.exit_code == 0
             mock_validate.assert_called_once_with(str(self.specfile))
 
@@ -179,20 +180,20 @@ class TestUpdateProject(TestCase):
         with patch('oceanum.cli.prax.client.PRAXClient.get_project', return_value=project_schema) as mock_get:
             patch_resp = project_schema.model_copy(update={'active': False})
             with patch('oceanum.cli.prax.client.PRAXClient.patch_project', return_value=patch_resp) as mock_update:
-                result = runner.invoke(main, ['prax', 'update', 'project', 'test-project', '--active', '0'])
+                result = runner.invoke(oceanum_main, ['prax', 'update', 'project', 'test-project', '--active', '0'])
                 assert 'updated' in result.output
 
     def test_update_description(self):
         with patch('oceanum.cli.prax.client.PRAXClient.get_project', return_value=project_schema) as mock_get:
             patch_resp = project_schema.model_copy(update={'description': 'new-description'})
             with patch('oceanum.cli.prax.client.PRAXClient.patch_project', return_value=patch_resp) as mock_update:
-                result = runner.invoke(main, ['prax', 'update', 'project', 'test-project', '--description', 'new-description'])
+                result = runner.invoke(oceanum_main, ['prax', 'update', 'project', 'test-project', '--description', 'new-description'])
                 assert 'updated' in result.output
 
     def test_update_error(self):
         with patch('oceanum.cli.prax.client.PRAXClient.get_project', return_value=project_schema) as mock_get:
             with patch('oceanum.cli.prax.client.PRAXClient.patch_project', return_value=models.ErrorResponse(detail='test-error')) as mock_update:
-                result = runner.invoke(main, ['prax', 'update', 'project', 'test-project', '--active', '0'])
+                result = runner.invoke(oceanum_main, ['prax', 'update', 'project', 'test-project', '--active', '0'])
                 assert 'Failed to update' in result.output
                 assert result.exit_code == 1
 
@@ -203,49 +204,49 @@ class TestDeployProject(TestCase):
         self.specfile = str(Path(__file__).parent/'data/dpm-project.yaml')
         self.bad_specfile = str(Path(__file__).parent/'data/bad-project.yaml')
         return super().setUp()
-    
+
     def tearDown(self) -> None:
         return super().tearDown()
 
     def test_deploy_help(self):
-        result = runner.invoke(main, ['prax','deploy', '--help'])
+        result = runner.invoke(oceanum_main, ['prax','deploy', '--help'])
         assert result.exit_code == 0
-        
+
     def test_deploy_empty(self):
-        result = runner.invoke(main, ['prax','deploy'])
+        result = runner.invoke(oceanum_main, ['prax','deploy'])
         assert result.exit_code != 0
         assert 'Missing argument' in result.output
 
     def test_deploy_specfile_not_found(self):
-        result = runner.invoke(main, ['prax','deploy', 'randomfile.yaml'])
+        result = runner.invoke(oceanum_main, ['prax','deploy', 'randomfile.yaml'])
         assert result.exit_code != 0
         assert 'does not exist' in result.output
 
     def test_deploy_specfile_error(self):
-        result = runner.invoke(main, ['prax','deploy', str(self.bad_specfile)])
+        result = runner.invoke(oceanum_main, ['prax','deploy', str(self.bad_specfile)])
         assert result.exit_code != 0
         assert 'Extra inputs are not permitted' in result.output
 
     def test_deploy_specfile_no_args(self):
-        with patch('oceanum.cli.prax.client.PRAXClient.get_project', 
+        with patch('oceanum.cli.prax.client.PRAXClient.get_project',
             return_value=project_schema
         ) as mock_get:
-            with patch('oceanum.cli.prax.client.PRAXClient.deploy_project', 
+            with patch('oceanum.cli.prax.client.PRAXClient.deploy_project',
                 return_value=project_schema
             ) as mock_deploy:
                 result = runner.invoke(
-                    main, ['prax','deploy', str(self.specfile),'--wait=0']
+                    oceanum_main, ['prax','deploy', str(self.specfile),'--wait=0']
                 )
                 assert 'created successfully' in result.output
                 assert result.exit_code == 0
                 assert mock_deploy.call_args[0][0].name == project_schema.name
-                
+
     def test_deploy_specfile_with_secrets(self):
         secret_overlay = 'test-secret:token=123456'
         with patch('oceanum.cli.prax.client.PRAXClient.get_project', return_value=project_schema) as mock_get:
             with patch('oceanum.cli.prax.client.PRAXClient.deploy_project', return_value=project_schema) as mock_deploy:
                 result = runner.invoke(
-                    main, ['prax','deploy', str(self.specfile),'-s', secret_overlay,'--wait=0']
+                    oceanum_main, ['prax','deploy', str(self.specfile),'-s', secret_overlay,'--wait=0']
                 )
                 assert result.exit_code == 0
                 assert mock_deploy.call_args[0][0].resources.secrets[0].data.root['token'] == '123456'
@@ -254,7 +255,7 @@ class TestDeployProject(TestCase):
         with patch('oceanum.cli.prax.client.PRAXClient.get_project', return_value=project_schema) as mock_get:
             with patch('oceanum.cli.prax.client.PRAXClient.deploy_project', return_value=project_schema) as mock_deploy:
                 result = runner.invoke(
-                    main, ['prax','deploy', str(self.specfile),'--org','test','--wait=0','--user=test@test.com']
+                    oceanum_main, ['prax','deploy', str(self.specfile),'--org','test','--wait=0','--user=test@test.com']
                 )
                 assert result.exit_code == 0
                 assert mock_deploy.call_args[0][0].user_ref.root == 'test'
@@ -338,7 +339,7 @@ class TestDescribeProject(TestCase):
         )
 
     def test_describe_help(self):
-        result = runner.invoke(main, ['prax', 'describe', 'project', '--help'])
+        result = runner.invoke(oceanum_main, ['prax', 'describe', 'project', '--help'])
         assert result.exit_code == 0
 
     def test_describe_project_not_found(self):
@@ -346,32 +347,32 @@ class TestDescribeProject(TestCase):
         response.json.return_value = {'detail': 'not found!'}
         response.raise_for_status.side_effect = requests.exceptions.HTTPError('404')
         with patch('requests.request', return_value=response) as mock_request:
-            result = runner.invoke(main, ['prax', 'describe', 'project', 'some-random-project'])
+            result = runner.invoke(oceanum_main, ['prax', 'describe', 'project', 'some-random-project'])
             assert result.exit_code == 1
             assert mock_request.call_count == 1
             assert 'not found!' in result.output
 
     def test_describe_project(self):
         with patch('oceanum.cli.prax.client.PRAXClient.get_project', return_value=self.full_schema) as mock_get:
-            result = runner.invoke(main, ['prax', 'describe', 'project', 'test-project'])
+            result = runner.invoke(oceanum_main, ['prax', 'describe', 'project', 'test-project'])
             assert result.exit_code == 0
             assert 'healthy' in result.output
 
     def test_describe_project_show_spec(self):
         with patch('oceanum.cli.prax.client.PRAXClient.get_project', return_value=self.full_schema) as mock_get:
-            result = runner.invoke(main, ['prax', 'describe', 'project', 'test-project', '--show-spec'])
+            result = runner.invoke(oceanum_main, ['prax', 'describe', 'project', 'test-project', '--show-spec'])
             assert result.exit_code == 0
             assert 'test-project' in result.output
 
     def test_describe_project_only_spec(self):
         with patch('oceanum.cli.prax.client.PRAXClient.get_project', return_value=self.full_schema) as mock_get:
-            result = runner.invoke(main, ['prax', 'describe', 'project', 'test-project', '--only-spec'])
+            result = runner.invoke(oceanum_main, ['prax', 'describe', 'project', 'test-project', '--only-spec'])
             assert result.exit_code == 0
             assert 'test-project' in result.output
 
 class TestAllowProject(TestCase):
     def test_allow_help(self):
-        result = runner.invoke(main, ['prax', 'allow', 'project', '--help'])
+        result = runner.invoke(oceanum_main, ['prax', 'allow', 'project', '--help'])
         assert result.exit_code == 0
 
     def test_allow_project_not_found(self):
@@ -379,7 +380,7 @@ class TestAllowProject(TestCase):
         response.json.return_value = {'detail': 'not found!'}
         response.raise_for_status.side_effect = requests.exceptions.HTTPError('404')
         with patch('requests.request', return_value=response) as mock_request:
-            result = runner.invoke(main, ['prax', 'allow', 'project', 'some-random-project','--user','some-user'])
+            result = runner.invoke(oceanum_main, ['prax', 'allow', 'project', 'some-random-project','--user','some-user'])
             print(result.output)
             assert result.exit_code == 1
             assert mock_request.call_count == 1
@@ -391,14 +392,14 @@ class TestAllowProject(TestCase):
         )
         with patch.object(client.PRAXClient, 'get_project', return_value=project_schema) as mock_request:
             with patch.object(client.PRAXClient, '_request', return_value=(post_response, None)) as mock_request:
-                result = runner.invoke(main, ['prax', 'allow', 'project', 'test-project','--user','some-user','--change'])
+                result = runner.invoke(oceanum_main, ['prax', 'allow', 'project', 'test-project','--user','some-user','--change'])
                 assert result.exit_code == 0
 
 timestamp = datetime.now().replace(tzinfo=timezone.utc).isoformat()
 
 class TestListSources(TestCase):
     def test_list_sources_help(self):
-        result = runner.invoke(main, ['prax', 'list', 'sources', '--help'])
+        result = runner.invoke(oceanum_main, ['prax', 'list', 'sources', '--help'])
         assert result.exit_code == 0
 
     def test_list_sources_success(self):
@@ -414,9 +415,9 @@ class TestListSources(TestCase):
             "status": "active"
         }]
 
-        with patch('oceanum.cli.prax.client.PRAXClient.list_sources', 
+        with patch('oceanum.cli.prax.client.PRAXClient.list_sources',
                   return_value=sources_response) as mock_list:
-            result = runner.invoke(main, ['prax', 'list', 'sources'])
+            result = runner.invoke(oceanum_main, ['prax', 'list', 'sources'])
             assert result.exit_code == 0
             assert 'test-source' in result.output
             mock_list.assert_called_once_with(
@@ -440,9 +441,9 @@ class TestListSources(TestCase):
             "status": "active"
         }]
 
-        with patch('oceanum.cli.prax.client.PRAXClient.list_sources', 
+        with patch('oceanum.cli.prax.client.PRAXClient.list_sources',
                   return_value=sources_response) as mock_list:
-            result = runner.invoke(main, [
+            result = runner.invoke(oceanum_main, [
                 'prax', 'list', 'sources',
                 '--project', 'test-project',
                 '--org', 'test-org',
@@ -461,9 +462,9 @@ class TestListSources(TestCase):
             )
 
     def test_list_sources_empty(self):
-        with patch('oceanum.cli.prax.client.PRAXClient.list_sources', 
+        with patch('oceanum.cli.prax.client.PRAXClient.list_sources',
                   return_value=[]) as mock_list:
-            result = runner.invoke(main, ['prax', 'list', 'sources'])
+            result = runner.invoke(oceanum_main, ['prax', 'list', 'sources'])
             assert result.exit_code == 1
             assert 'No sources found!' in result.output
 
@@ -472,9 +473,9 @@ class TestListSources(TestCase):
             status_code=500,
             detail="Internal server error"
         )
-        with patch('oceanum.cli.prax.client.PRAXClient.list_sources', 
+        with patch('oceanum.cli.prax.client.PRAXClient.list_sources',
                   return_value=error_response) as mock_list:
-            result = runner.invoke(main, ['prax', 'list', 'sources'])
+            result = runner.invoke(oceanum_main, ['prax', 'list', 'sources'])
             assert result.exit_code == 1
             assert 'Could not list sources!' in result.output
 
@@ -482,9 +483,8 @@ class TestListSources(TestCase):
         response = MagicMock(status_code=401)
         response.json.return_value = {'detail': 'Not authenticated'}
         response.raise_for_status.side_effect = requests.exceptions.HTTPError('401')
-        
+
         with patch('requests.request', return_value=response):
-            result = runner.invoke(main, ['prax', 'list', 'sources'])
+            result = runner.invoke(oceanum_main, ['prax', 'list', 'sources'])
             assert result.exit_code == 1
             assert 'Not authenticated' in result.output
-

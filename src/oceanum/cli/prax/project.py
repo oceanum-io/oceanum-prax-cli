@@ -9,7 +9,7 @@ from oceanum.cli.auth import login_required
 from oceanum.cli.common.symbols import spin, chk, err, wrn, info, key
 
 from .client import PRAXClient
-from .main import list_group, describe, delete, prax, update, allow
+from .main import list_group, describe, delete, cli, update, allow
 from . import models
 from .utils import (
     echoerr, merge_secrets,
@@ -52,7 +52,7 @@ def list_projects(ctx: click.Context, search: str|None, org: str|None, user: str
         RenderField(label='Status', path='$.status', mod=psc),
         RenderField(label='Stages', path='$.stages.*', mod=ssc),
     ]
-        
+
     if not projects:
         click.echo(f' {wrn} No projects found!')
         sys.exit(1)
@@ -63,7 +63,7 @@ def list_projects(ctx: click.Context, search: str|None, org: str|None, user: str
     else:
         click.echo(Renderer(data=projects, fields=fields).render(output_format='table'))
 
-@prax.command(name='validate', help='Validate PRAX Project Specfile')
+@cli.command(name='validate', help='Validate PRAX Project Specfile')
 @click.argument('specfile', type=click.Path(exists=True))
 @click.pass_context
 @login_required
@@ -78,7 +78,7 @@ def validate_project(ctx: click.Context, specfile: click.Path):
     else:
         click.echo(f' {chk} OK! Project Spec file is valid!')
 
-@prax.command(name='deploy', help='Deploy a PRAX Project Specfile')
+@cli.command(name='deploy', help='Deploy a PRAX Project Specfile')
 @name_option
 @project_org_option
 @project_user_option
@@ -90,10 +90,10 @@ def validate_project(ctx: click.Context, specfile: click.Path):
 @click.pass_context
 @login_required
 def deploy_project(
-    ctx: click.Context, 
+    ctx: click.Context,
     specfile: click.Path,
     name: str|None,
-    org: str|None, 
+    org: str|None,
     user: str|None,
     wait: bool,
     secrets: list[str]
@@ -128,7 +128,7 @@ def deploy_project(
     project = client.get_project(**get_params)
     click.echo(f'Using domain: {ctx.obj.token.domain}')
     click.echo(f'')
-    
+
     if isinstance(project, models.ProjectDetailsSchema):
         click.echo(f" {spin} Updating existing PRAX Project:")
     else:
@@ -217,18 +217,18 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
         ]
 
         click.echo(Renderer(
-            data=[revision], 
-            fields=revision_fields, 
+            data=[revision],
+            fields=revision_fields,
             indent=2
         ).render(output_format='table', tablefmt='plain'))
         # click.echo(' '*2+'Spec:')
         # click.echo(Renderer(
-        #     data=[revision.spec], 
-        #     fields=[], 
+        #     data=[revision.spec],
+        #     fields=[],
         #     indent=4
         # ).render(output_format='yaml'))
 
-    def render_stage_resources(resources: models.StageResourcesSchema):    
+    def render_stage_resources(resources: models.StageResourcesSchema):
 
         def render_resources(
             resources: list[models.BuildSchema]|list[models.PipelineSchema]|list[models.RouteSchema]|list[models.TaskSchema],
@@ -243,7 +243,7 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
                     RenderField(label='Description', path='$.description'),
                     #RenderField(label='Object Ref.', path='$.object_ref'),
                     RenderField(label='Updated At', path='$.updated_at', mod=format_dt),
-                    
+
                 ]
                 click.echo(Renderer(
                     data=[resource],
@@ -253,10 +253,10 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
                 if len(resources) > 1:
                     click.echo(' '*indent+'-'*40)
             click.echo()
-        
+
         pipeline_fields = [
-            RenderField(label='Last Run Status', 
-                        path='$.last_run', 
+            RenderField(label='Last Run Status',
+                        path='$.last_run',
                         mod=lambda x: x['status'] if x is not None else 'N/A'
             ),
         ]
@@ -265,7 +265,7 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
             build_fields = [
                 RenderField(label='Source Ref', path='$.source_ref'),
                 RenderField(label='Commit', path='$.commit_sha'),
-                RenderField(label='Image digest', path='$.image_digest'),            
+                RenderField(label='Image digest', path='$.image_digest'),
             ]+pipeline_fields
             render_resources(resources.builds, build_fields, indent=6)
 
@@ -277,7 +277,7 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
 
         if resources.tasks:
             render_resources(resources.tasks, pipeline_fields, indent=6)
-                
+
         if resources.pipelines:
             render_resources(resources.pipelines, pipeline_fields, indent=6)
 
@@ -289,8 +289,8 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
             RenderField(label='Message', path='$.error_message', sep=linesep),
         ]
         click.echo(Renderer(
-            data=[stage], 
-            fields=stage_fields, 
+            data=[stage],
+            fields=stage_fields,
             indent=2
         ).render(output_format='table', tablefmt='plain'))
         click.echo(' '*2+'Deployed Resources:')
@@ -304,10 +304,10 @@ def describe_project(ctx: click.Context, project_name: str, org: str, user:str, 
             RenderField(label='Owner', path='$.owner'),
             RenderField(label='Created', path='$.created_at', mod=format_dt),
         ]
-        # 
+        #
         click.echo('-'*40)
         click.echo(Renderer(
-            data=[project], 
+            data=[project],
             fields=render_fields
         ).render(output_format='table', tablefmt='plain'))
         if project.last_revision is not None:
@@ -357,7 +357,7 @@ def update_project(ctx: click.Context, project_name: str, description: str, org:
         click.echo(f" {err} Failed to update project description!")
         echoerr(project)
         sys.exit(1)
-        
+
 
 @allow.command(name='project')
 @click.argument('project_name', type=str, required=True)
@@ -371,9 +371,9 @@ def update_project(ctx: click.Context, project_name: str, description: str, org:
 @click.option('-d','--delete', help='Allow to delete the project, implies --view and --change', default=None, type=bool, is_flag=True)
 @click.pass_context
 def allow_project(ctx: click.Context, project_name: str, org: str, group: list[str],
-                  user: list[str], assign: bool, view: bool, change: bool, 
+                  user: list[str], assign: bool, view: bool, change: bool,
                   delete: bool):
-    
+
     def _get_perm(subject: str):
         return models.PermissionsSchema(
             subject=subject,
@@ -406,7 +406,7 @@ def allow_project(ctx: click.Context, project_name: str, org: str, group: list[s
 @project_user_option
 @click.option('--search', help='Search by project name or description', default=None, type=str)
 @click.option('--status', help='filter by Project status', default=None, type=str)
-def list_sources(ctx: click.Context, project: str|None, org: str|None, 
+def list_sources(ctx: click.Context, project: str|None, org: str|None,
                  user: str|None, search: str|None, status: str|None):
     click.echo(f' {spin} Listing sources...')
     client = PRAXClient(ctx)
@@ -428,7 +428,7 @@ def list_sources(ctx: click.Context, project: str|None, org: str|None,
         RenderField(label='Repository', path='$.repository'),
         RenderField(label='Status', path='$.status', mod=sosc),
     ]
-        
+
     if not sources:
         click.echo(f' {wrn} No sources found!')
         sys.exit(1)
