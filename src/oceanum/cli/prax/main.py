@@ -1,5 +1,5 @@
 
-from oceanum.cli.main import main
+from oceanum.cli import main
 
 @main.group(name='prax', help='Oceanum PRAX Projects Management')
 def prax():

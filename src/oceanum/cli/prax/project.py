@@ -3,10 +3,10 @@ from os import linesep
 
 import click
 
-from oceanum.cli.common.renderer import Renderer, RenderField
-from oceanum.cli.common.utils import format_dt
+from oceanum.cli.renderer import Renderer, RenderField
+from oceanum.cli.utils import format_dt
 from oceanum.cli.auth import login_required
-from oceanum.cli.common.symbols import spin, chk, err, wrn, info, key
+from oceanum.cli.symbols import spin, chk, err, wrn, info, key
 
 from .client import PRAXClient
 from .main import list_group, describe, delete, prax, update, allow
