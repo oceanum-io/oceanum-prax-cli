@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch, ANY
 from datetime import datetime
 from requests import Response
 
-from oceanum.cli.main import main
+from oceanum.cli import main
 from oceanum.cli.prax.workflows import (
     list_pipelines, describe_pipeline, submit_pipeline,
     terminate_pipeline, retry_pipeline, get_pipeline_logs

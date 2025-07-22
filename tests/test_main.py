@@ -5,7 +5,7 @@ import requests
 from unittest.mock import patch, MagicMock
 from oceanum.cli.prax import main, project, route, user, models
 from oceanum.cli.prax.main import prax
-from oceanum.cli.main import main
+from oceanum.cli import main
 from oceanum.cli.models import ContextObject, TokenResponse, Auth0Config
 from click.testing import CliRunner
 from click.globals import get_current_context
