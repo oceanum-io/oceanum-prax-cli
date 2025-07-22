@@ -36,7 +36,7 @@ dependencies = [
   "requests",
   "tabulate",
   "humanize",
-  "oceanum>=0.17"
+  "oceanum>=1.0.11"
 ]
 dynamic = ["version"]
 
