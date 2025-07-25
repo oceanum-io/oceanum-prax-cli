@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 
 from click.testing import CliRunner
 
-from oceanum.cli.main import main
+from oceanum.cli import main
 from oceanum.cli.prax import models, client
 
 runner = CliRunner()

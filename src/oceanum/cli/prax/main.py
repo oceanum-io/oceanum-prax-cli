@@ -1,8 +1,9 @@
 import click
 
-@click.group(help='Oceanum PRAX Projects Management')
-def cli():
-    """Main entry point for prax CLI plugin."""
+from oceanum.cli import main
+
+@main.group(name='prax', help='Oceanum PRAX Projects Management')
+def prax():
     pass
 
 # Alias for backward compatibility and plugin interface

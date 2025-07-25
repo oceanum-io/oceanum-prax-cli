@@ -10,7 +10,7 @@ from click.testing import CliRunner
 
 from datetime import datetime, timezone
 
-from oceanum.cli.main import main as oceanum_main
+from oceanum.cli import main
 from oceanum.cli.prax import models, client
 from oceanum.cli.prax.main import cli
 

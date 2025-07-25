@@ -4,7 +4,7 @@ import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from oceanum.cli.common.models import TokenResponse
+from oceanum.cli.models import TokenResponse
 import pytest
 import oceanum.cli.prax
 from oceanum.cli.main import main as oceanum_main

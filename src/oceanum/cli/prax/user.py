@@ -1,8 +1,8 @@
 
 import click
 
-from oceanum.cli.common.renderer import Renderer, RenderField
-from oceanum.cli.common.symbols import err, chk
+from oceanum.cli.renderer import Renderer, RenderField
+from oceanum.cli.symbols import err, chk
 from oceanum.cli.auth import login_required
 
 from . import models

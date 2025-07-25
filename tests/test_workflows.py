@@ -5,13 +5,13 @@ from unittest.mock import Mock, patch, ANY
 from datetime import datetime
 from requests import Response
 
-from oceanum.cli.main import main
+from oceanum.cli import main
 from oceanum.cli.prax.workflows import (
     list_pipelines, describe_pipeline, submit_pipeline,
     terminate_pipeline, retry_pipeline, get_pipeline_logs
 )
 from oceanum.cli.prax import models
-from oceanum.cli.common.models import TokenResponse, Auth0Config
+from oceanum.cli.models import TokenResponse, Auth0Config
 
 timestamp = datetime.now().isoformat()
 
@@ -68,13 +68,13 @@ class TestPipelineCommands:
         ]
         mock_client.return_value = (mock_response, None)
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             result = runner.invoke(main, ['prax', 'list', 'pipelines'])
             print(result.output)
             assert result.exit_code == 0
 
         # With filters
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             result = runner.invoke(main, ['prax', 'list', 'pipelines', '--project=bla'])
             assert result.exit_code == 0
             mock_client.assert_called_with("GET", "pipelines", 
@@ -86,7 +86,7 @@ class TestPipelineCommands:
         # Setup error response
         mock_client.return_value = (error_response, models.ErrorResponse(detail="Not found"))
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
 
             result = runner.invoke(main, ['prax', 'list', 'pipelines'])
             assert result.exit_code == 1
@@ -143,12 +143,12 @@ class TestPipelineCommands:
         })
         mock_client.return_value = (mock_response, None)
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             result = runner.invoke(main, ['prax', 'submit', 'pipeline', 'test-pipeline'])
             assert result.exit_code == 0
             assert "Pipeline submitted successfully" in result.output
         # with filters and parameters
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             result = runner.invoke(main, ['prax', 'submit', 'pipeline', 'test-pipeline', '--project', 'bla', '-p', 'key=val'])
             assert result.exit_code == 0
             assert "Pipeline submitted successfully" in result.output
@@ -220,7 +220,7 @@ class TestPipelineCommands:
         #mock_response.content.return_value = ["Log line 1", "Log line 2"]
         mock_response.iter_lines.return_value = iter(["Log line 1", "Log line 2"])
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             with patch('oceanum.cli.prax.client.PRAXClient.get_pipeline') as mock_get_pipeline:
                 mock_get_pipeline.return_value =  pipeline_get_response
                 result = runner.invoke(main, ['prax', 'logs', 'pipeline', 'test-pipeline'])
@@ -252,7 +252,7 @@ class TestPipelineCommands:
         })
         mock_response.iter_lines.return_value = iter(["Log line 1", "Log line 2"])
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             with patch('oceanum.cli.prax.client.PRAXClient.get_pipeline') as mock_get_pipeline:
                 mock_get_pipeline.return_value =  pipeline_get_response
                 result = runner.invoke(main, ['prax', 'logs', 'pipeline', 'test-pipeline', '--follow'])
@@ -275,11 +275,11 @@ class TestTaskCommands:
         ]
         mock_client.return_value = (mock_response, None)
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             result = runner.invoke(main, ['prax', 'list', 'tasks'])
             assert result.exit_code == 0
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             result = runner.invoke(main, ['prax', 'list', 'tasks', '--project=bla'])
             assert result.exit_code == 0
             mock_client.assert_called_with("GET", "tasks", 
@@ -300,7 +300,7 @@ class TestTaskCommands:
         })
         mock_client.return_value = (mock_response, None)
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             result = runner.invoke(main, ['prax', 'describe', 'task', 'test-task'])
             assert result.exit_code == 0
 
@@ -327,7 +327,7 @@ class TestTaskCommands:
         })
         mock_client.return_value = (mock_response, None)
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             result = runner.invoke(main, ['prax', 'submit', 'task', 'test-task', '-p', 'key=val'])
             assert result.exit_code == 0
             assert "Task submitted successfully" in result.output
@@ -360,7 +360,7 @@ class TestTaskCommands:
         })
         mock_response.iter_lines.return_value = iter(["Log line 1", "Log line 2"])
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             with patch('oceanum.cli.prax.client.PRAXClient.get_task') as mock_get_task:
                 mock_get_task.return_value = task_response
                 result = runner.invoke(main, ['prax', 'logs', 'task', 'test-task'])
@@ -384,7 +384,7 @@ class TestBuildCommands:
         ]
         mock_client.return_value = (mock_response, None)
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             result = runner.invoke(main, ['prax', 'list', 'builds'])
             assert result.exit_code == 0
 
@@ -403,7 +403,7 @@ class TestBuildCommands:
         })
         mock_client.return_value = (mock_response, None)
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             result = runner.invoke(main, ['prax', 'describe', 'build', 'test-build'])
             assert result.exit_code == 0
 
@@ -431,7 +431,7 @@ class TestBuildCommands:
         })
         mock_client.return_value = (mock_response, None)
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             result = runner.invoke(main, ['prax', 'submit', 'build', 'test-build'])
             assert result.exit_code == 0
             assert "Build submitted successfully" in result.output
@@ -460,7 +460,7 @@ class TestBuildCommands:
         })
         mock_response.iter_lines.return_value = iter(["Log line 1", "Log line 2"])
 
-        with patch('oceanum.cli.common.models.TokenResponse.load', return_value=token):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
             with patch('oceanum.cli.prax.client.PRAXClient.get_build') as mock_get_build:
                 mock_get_build.return_value = build_response
                 result = runner.invoke(main, ['prax', 'logs', 'build', 'test-build'])

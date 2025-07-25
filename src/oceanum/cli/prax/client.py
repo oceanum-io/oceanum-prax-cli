@@ -11,7 +11,7 @@ import humanize
 import requests
 from pydantic import SecretStr, RootModel, Field, model_validator, ValidationError
 
-from oceanum.cli.common.symbols import spin, chk, err, wrn, watch, globe
+from oceanum.cli.symbols import spin, chk, err, wrn, watch, globe
 from . import models
 from .utils import format_route_status as _frs
 

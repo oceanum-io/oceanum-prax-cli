@@ -29,20 +29,28 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "click",
-    "platformdirs",
-    "pydantic[email]",
-    "python-jsonpath",
-    "requests",
-    "tabulate",
-    "humanize",
-    "oceanum>=0.17",
+  "click",
+  "platformdirs",
+  "pydantic[email]",
+  "python-jsonpath",
+  "requests",
+  "tabulate",
+  "humanize",
+  "oceanum>=1.0.11"
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 test = ["pytest", "pytest-cov", "ruff"]
 modelgen = ["datamodel-code-generator[http]"]
+
+[project.entry-points."oceanum.cli.extensions"]
+"main" = "oceanum.cli.prax.main"
+"project" = "oceanum.cli.prax.project"
+"workflows" = "oceanum.cli.prax.workflows"
+"route" = "oceanum.cli.prax.route"
+"user" = "oceanum.cli.prax.user"
+"client" = "oceanum.cli.prax.client"
 
 [project.urls]
 "Homepage" = "https://oceanum.io/"

@@ -1,7 +1,7 @@
 
 import click
 
-from oceanum.cli.common.symbols import wrn
+from oceanum.cli.symbols import wrn
 
 from .models import ErrorResponse, ProjectSpec, SecretData, PermissionsSchema
 
