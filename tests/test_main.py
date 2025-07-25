@@ -18,7 +18,7 @@ class TestPRAXCommands(TestCase):
         return super().setUp()
 
     def test_describe_help(self):
-        result = self.runner.invoke(cli, ['describe', '--help'])
+        result = self.runner.invoke(prax, ['describe', '--help'])
         assert result.exit_code == 0
 
 
@@ -37,42 +37,42 @@ class TestPRAXCommands(TestCase):
             url='http://test-route'
         )
         with patch('oceanum.cli.prax.client.PRAXClient.get_route', return_value=route) as mock_get:
-            result = self.runner.invoke(oceanum_main, ['prax','describe','route','test-route'])
+            result = self.runner.invoke(main, ['prax','describe','route','test-route'])
             assert result.exit_code == 0
             mock_get.assert_called_once_with('test-route')
-
+    
     def test_describe_route_not_found(self):
-        result = self.runner.invoke(oceanum_main, ['prax','describe','route','test-route'])
+        result = self.runner.invoke(main, ['prax','describe','route','test-route'])
         assert result.exit_code != 0
 
     def test_list_routes(self):
         with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
-            result = self.runner.invoke(oceanum_main, ['prax','list','routes'])
+            result = self.runner.invoke(main, ['prax','list','routes'])
             assert result.exit_code == 0
             mock_list.assert_called_once_with()
-
+    
     def test_list_routes_apps(self):
         with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
-            result = self.runner.invoke(oceanum_main, ['prax','list','routes','--tier','frontend'])
+            result = self.runner.invoke(main, ['prax','list','routes','--tier','frontend'])
             assert result.exit_code == 0
             mock_list.assert_called_once_with(tier='frontend')
-
+    
     def test_list_routes_services(self):
         with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
-            result = self.runner.invoke(oceanum_main, ['prax','list','routes','--tier','backend'])
+            result = self.runner.invoke(main, ['prax','list','routes','--tier','backend'])
             print(result.output)
             assert result.exit_code == 0
-
+            
             mock_list.assert_called_once_with(tier='backend')
 
     def test_list_routes_open(self):
         with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
-            result = self.runner.invoke(oceanum_main, ['prax','list','routes','--open-access'])
+            result = self.runner.invoke(main, ['prax','list','routes','--open-access'])
             assert result.exit_code == 0
             mock_list.assert_called_once_with(open=True)
 
     def test_list_no_routes(self):
         with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
             mock_list.return_value = []
-            result = self.runner.invoke(oceanum_main, ['prax','list','routes'])
+            result = self.runner.invoke(main, ['prax','list','routes'])
             assert result.exit_code == 0

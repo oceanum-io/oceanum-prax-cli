@@ -468,4 +468,3 @@ class TestBuildCommands:
                 assert "Log line 1" in result.output
 
 
-
