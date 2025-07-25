@@ -3,13 +3,13 @@ from os import linesep
 
 import click
 
-from oceanum.cli.common.renderer import Renderer, RenderField
-from oceanum.cli.common.utils import format_dt
+from oceanum.cli.renderer import Renderer, RenderField
+from oceanum.cli.utils import format_dt
 from oceanum.cli.auth import login_required
-from oceanum.cli.common.symbols import spin, chk, err, wrn, info, key
+from oceanum.cli.symbols import spin, chk, err, wrn, info, key
 
 from .client import PRAXClient
-from .main import list_group, describe, delete, cli, update, allow
+from .main import list_group, describe, delete, prax, update, allow
 from . import models
 from .utils import (
     echoerr, merge_secrets,
@@ -63,7 +63,7 @@ def list_projects(ctx: click.Context, search: str|None, org: str|None, user: str
     else:
         click.echo(Renderer(data=projects, fields=fields).render(output_format='table'))
 
-@cli.command(name='validate', help='Validate PRAX Project Specfile')
+@prax.command(name='validate', help='Validate PRAX Project Specfile')
 @click.argument('specfile', type=click.Path(exists=True))
 @click.pass_context
 @login_required
@@ -78,7 +78,7 @@ def validate_project(ctx: click.Context, specfile: click.Path):
     else:
         click.echo(f' {chk} OK! Project Spec file is valid!')
 
-@cli.command(name='deploy', help='Deploy a PRAX Project Specfile')
+@prax.command(name='deploy', help='Deploy a PRAX Project Specfile')
 @name_option
 @project_org_option
 @project_user_option
@@ -127,7 +127,7 @@ def deploy_project(
     }
     project = client.get_project(**get_params)
     click.echo(f'Using domain: {ctx.obj.token.domain}')
-    click.echo(f'')
+    click.echo('')
 
     if isinstance(project, models.ProjectDetailsSchema):
         click.echo(f" {spin} Updating existing PRAX Project:")

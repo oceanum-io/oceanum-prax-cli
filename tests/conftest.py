@@ -2,18 +2,10 @@
 # This is a pytest conftest.py file
 import os
 import tempfile
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-from oceanum.cli.common.models import TokenResponse
+from unittest.mock import patch
+from oceanum.cli.models import TokenResponse
 import pytest
 import oceanum.cli.prax
-from oceanum.cli.main import main as oceanum_main
-from oceanum.cli.prax.main import cli
-# Import all prax submodules to register their commands
-import oceanum.cli.prax.project
-import oceanum.cli.prax.route
-import oceanum.cli.prax.user
-import oceanum.cli.prax.workflows
 tmpdir = tempfile.TemporaryDirectory()
 dir_patcher = patch('platformdirs.user_data_dir', return_value=tmpdir.name)
 active_org_patcher = patch.object(TokenResponse, 'active_org', return_value='test-org')
@@ -31,10 +23,7 @@ def pytest_sessionstart(session):
     ).save()
     active_org_patcher.start()
     email_patcher.start()
-
-    # Set up the prax plugin for all tests
-    oceanum_main.add_command(cli, name='prax')
-
+    
 
 def pytest_sessionfinish(session):
     del os.environ['OCEANUM_DOMAIN']

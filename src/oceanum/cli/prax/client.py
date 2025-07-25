@@ -11,7 +11,7 @@ import humanize
 import requests
 from pydantic import SecretStr, RootModel, Field, model_validator, ValidationError
 
-from oceanum.cli.common.symbols import spin, chk, err, wrn, watch, globe
+from oceanum.cli.symbols import spin, chk, err, wrn, watch, globe
 from . import models
 from .utils import format_route_status as _frs
 
@@ -251,7 +251,6 @@ class PRAXClient:
     def _check_routes(self, **params):
         project = self.get_project(**params)
         if isinstance(project, models.ProjectDetailsSchema):
-            project_name = project.name if project else 'unknown'
             for stage in project.stages:
                 for route in stage.resources.routes:
                     urls = [f"https://{d}" for d in route.custom_domains] + [route.url]
@@ -364,7 +363,7 @@ class PRAXClient:
         self._deploy_start_time = time.time()
         committed = self._wait_project_commit(**params)
         if committed:
-            started_updating = self._wait_stages_start_updating(**params)
+            self._wait_stages_start_updating(**params)
             build_succeeded = self._wait_builds_to_finish(**params)
             if build_succeeded:
                 self._wait_stages_finish_updating(**params)

@@ -4,9 +4,9 @@ from os import linesep
 
 import click
 
-from oceanum.cli.common.renderer import Renderer, output_format_option, RenderField
+from oceanum.cli.renderer import Renderer, output_format_option, RenderField
 from oceanum.cli.auth import login_required
-from oceanum.cli.common.symbols import wrn, chk, info, err
+from oceanum.cli.symbols import wrn, chk, info, err
 from . import models
 from .main import list_group, describe, update, allow, logs
 from .client import PRAXClient

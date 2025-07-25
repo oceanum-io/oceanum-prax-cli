@@ -1,9 +1,9 @@
 
 import click
 
-from oceanum.cli.common.symbols import wrn
+from oceanum.cli.symbols import wrn
 
-from .models import ErrorResponse, ProjectSpec, SecretData, PermissionsSchema
+from .models import ErrorResponse, ProjectSpec, SecretData
 
 def format_run_status(status: str) -> str:
     status = status.lower()
