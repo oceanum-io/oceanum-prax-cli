@@ -3,12 +3,106 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel, SecretStr
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    RootModel,
+    SecretStr,
+)
+
+
+class Level(Enum):
+    """
+    The level of notification to trigger (e.g., 'info', 'warning', 'error', 'critical')
+    """
+
+    info = 'info'
+    warning = 'warning'
+    error = 'error'
+    critical = 'critical'
+
+
+class Event(Enum):
+    all = 'all'
+    user = 'user'
+    system = 'system'
+    deployment = 'deployment'
+    permission = 'permission'
+    resource_limit = 'resource_limit'
+    route_status = 'route_status'
+    build_event = 'build_event'
+    sensor_event = 'sensor_event'
+    source_event = 'source_event'
+    run_status = 'run_status'
+
+
+class ChannelRef(RootModel[str]):
+    root: str = Field(
+        ...,
+        description='Reference to the notification channel to use for sending notifications',
+        max_length=32,
+        min_length=3,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
+        title='Resource Name',
+    )
+
+
+class UserChannelRef(RootModel[str]):
+    root: str = Field(
+        ...,
+        description="Reference to the user's notification channel to use for sending notifications",
+        max_length=32,
+        min_length=3,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
+        title='Resource Name',
+    )
+
+
+class BaseNotificationConfig(BaseModel):
+    """
+    Base class for notification configuration
+    """
+
+    name: str = Field(
+        ...,
+        description='The name of the notification configuration',
+        max_length=100,
+        title='Notification Config Name',
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description='A brief description of the notification configuration',
+        title='Notification Config Description',
+    )
+    level: Level = Field(
+        default='info',
+        description="The level of notification to trigger (e.g., 'info', 'warning', 'error', 'critical')",
+        title='Notification Level',
+    )
+    events: Optional[list[Event]] = Field(
+        default=None,
+        description="List of type of events to subscribe to for notifications. TBD: currently only 'all' is supported, which means all events will trigger notifications.",
+        title='Subscribed Events',
+    )
+    channel_ref: Optional[ChannelRef] = Field(
+        default=None,
+        alias='channelRef',
+        description='Reference to the notification channel to use for sending notifications',
+        title='Notification Channel Reference',
+    )
+    user_channel_ref: Optional[UserChannelRef] = Field(
+        default=None,
+        alias='userChannelRef',
+        description="Reference to the user's notification channel to use for sending notifications",
+        title='User Notification Channel Reference',
+    )
 
 
 class QuotaTier(BaseModel):
@@ -120,6 +214,11 @@ class SecretSpec(BaseModel):
         title='Resource Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     data: Union[SecretData, dict[str, Any]] = Field(
         ...,
         description="The Secret's data, a dictionary of key-value pairs, values will be converted to string",
@@ -132,8 +231,8 @@ class UserResourceSchema(BaseModel):
     org: str = Field(..., title='Org')
     name: str = Field(..., max_length=255, title='Name')
     resource_type: str = Field(..., max_length=20, title='Resource Type')
-    created_at: datetime = Field(..., title='Created At')
-    updated_at: datetime = Field(..., title='Updated At')
+    created_at: AwareDatetime = Field(..., title='Created At')
+    updated_at: AwareDatetime = Field(..., title='Updated At')
 
 
 class Email(RootModel[str]):
@@ -239,9 +338,9 @@ class RouteSchema(BaseModel):
     custom_domains: list[str] = Field(default=[], title='Custom Domains')
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
-    object_ref: Optional[ObjectRef|str] = Field(default=None, title='Object Ref')
-    created_at: datetime = Field(..., title='Created At')
-    updated_at: datetime = Field(..., title='Updated At')
+    object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
+    created_at: AwareDatetime = Field(..., title='Created At')
+    updated_at: AwareDatetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
     display_name: str = Field(
         ...,
@@ -262,17 +361,17 @@ class RouteSchema(BaseModel):
         description='Whether the access to this App or Service is open to anyone in the Internet.',
         title='Open Access',
     )
-    revision: Optional[Revision|str] = Field(
+    revision: Optional[Revision] = Field(
         default=None,
         description="The latest Service's Ready Revision for the Route",
         title='Revision',
     )
-    next_revision: Optional[NextRevision|str] = Field(
+    next_revision: Optional[NextRevision] = Field(
         default=None,
         description="The next Service's revision to be updated",
         title='Next Revision',
     )
-    next_revision_status: Optional[NextRevisionStatus|str] = Field(
+    next_revision_status: Optional[NextRevisionStatus] = Field(
         default='pending',
         description="The next revision's status",
         title='Next Revision Status',
@@ -283,7 +382,7 @@ class RouteSchema(BaseModel):
         max_length=20,
         title='Status',
     )
-    service_name: Optional[ServiceName|str] = Field(
+    service_name: Optional[ServiceName] = Field(
         default=None,
         description="The Project's service name for the Route",
         title='Service Name',
@@ -295,7 +394,7 @@ class RouteSchema(BaseModel):
     )
 
 
-class RoutePatchSchema(BaseModel):
+class RouteUpdateSchema(BaseModel):
     display_name: str = Field(
         ..., description='The display name of the route', title='Display Name'
     )
@@ -423,17 +522,6 @@ class SourceRef(RootModel[str]):
     )
 
 
-class BuildRef(RootModel[str]):
-    root: str = Field(
-        ...,
-        description='The Build name reference from the list of Build resources',
-        max_length=32,
-        min_length=3,
-        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
-        title='Build Reference',
-    )
-
-
 class ConfigMapRefEnvVar(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -465,6 +553,11 @@ class ConfigMapSpec(BaseModel):
         title='Resource Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     data: dict[str, Any] = Field(
         ...,
         description="The ConfigMap's data, a dictionary of key-value pairs, values will be converted to string",
@@ -488,6 +581,17 @@ class ConfigmapParameterRef(BaseModel):
         ...,
         description='The ConfigMap key to use as the value of the Environment Variable',
         title='ConfigMap Key',
+    )
+
+
+class BuildRef(RootModel[str]):
+    root: str = Field(
+        ...,
+        description='The Build name reference from the list of Build resources',
+        max_length=32,
+        min_length=3,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
+        title='Build Reference',
     )
 
 
@@ -559,13 +663,13 @@ class CyclicDag(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    start_cycle: datetime = Field(
+    start_cycle: AwareDatetime = Field(
         ...,
         alias='startCycle',
         description='The start cycle in UTC of the DAG as an iso8601 string i.e. YYYY-MM-DDTHH:MM:SSZ or without timezone info. If no timezone is provided, it will be treated as UTC (Z suffix).',
         title='Startcycle',
     )
-    end_cycle: datetime = Field(
+    end_cycle: AwareDatetime = Field(
         ...,
         alias='endCycle',
         description='The end cycle in UTC of the DAG as an iso8601 string i.e. YYYY-MM-DDTHH:MM:SSZ with or without timezone info. If no timezone is provided, it will be treated as UTC (Z suffix).',
@@ -682,6 +786,11 @@ class ImageSpec(BaseModel):
         title='Resource Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     image: DockerImageURL = Field(
         ...,
         description='Image reference from project Images or a public or a private image URL, private images requires username and password or secret to be set',
@@ -741,6 +850,51 @@ class KeyToPath(BaseModel):
     )
 
 
+class Type(Enum):
+    """
+    The type of notification channel (e.g., 'email', 'slack', 'gchat', 'teams', 'webhook')
+    """
+
+    email = 'email'
+    slack = 'slack'
+    gchat = 'gchat'
+    teams = 'teams'
+    webhook = 'webhook'
+
+
+class NotificationChannel(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: str = Field(
+        ...,
+        description='The name of the notification channel',
+        max_length=100,
+        title='Notification Channel Name',
+    )
+    description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
+    type: Type = Field(
+        ...,
+        description="The type of notification channel (e.g., 'email', 'slack', 'gchat', 'teams', 'webhook')",
+        title='Notification Channel Type',
+    )
+    recipients: Optional[list[str]] = Field(
+        default=None,
+        description='List of recipients for the notification. For email, this is a list of email addresses. For Slack and Teams this can be a list of user IDs or channel names and for Gchat it should be a list of Webhook-Urls.',
+        title='Notification Recipients',
+    )
+    mentions: Optional[list[str]] = Field(
+        default=None,
+        description='List of users to mention in the notification. For Slack and Teams this can be a list of user IDs or usernames, for Gchat it should be a list of user IDs. Email does not support mentions.',
+        title='Mentions',
+    )
+
+
 class TaskRef(RootModel[str]):
     root: str = Field(
         ...,
@@ -795,15 +949,6 @@ class Schedule1(RootModel[str]):
     )
 
 
-class Schedule2(RootModel[str]):
-    root: str = Field(
-        ...,
-        description='A Cron like statement. See ',
-        pattern='((((\\d+,)+\\d+|(\\d+(\\/|-)\\d+)|\\d+|\\*) ?){5})',
-        title='Schedule',
-    )
-
-
 class Delay(RootModel[str]):
     root: str = Field(
         ...,
@@ -827,7 +972,7 @@ class PipelineCronTrigger(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    schedule: Union[Schedule, Schedule1, Schedule2] = Field(
+    schedule: Union[Schedule, Schedule1, str] = Field(
         ...,
         description='Schedule is a schedule to run the Workflow in Cron format',
         title='Schedule',
@@ -1190,6 +1335,11 @@ class SourceRepositorySpec(BaseModel):
         title='Resource Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     github: Optional[GitHubSourceRepositorySpec] = Field(
         default=None,
         description='A GitHub repository to use as the source repository',
@@ -1243,7 +1393,7 @@ class StageBuildStatus(BaseModel):
         description='The source repository commit SHA reference that triggered this update if has a sourceRef',
         title='Source Commit SHA',
     )
-    updated_at: Optional[datetime] = Field(
+    updated_at: Optional[AwareDatetime] = Field(
         default=None,
         alias='updatedAt',
         description='The time this push event was received if has a sourceRef',
@@ -1328,7 +1478,7 @@ class StageSourceStatus(BaseModel):
         description='The source repository branch that triggered this update if has a sourceRef',
         title='Source Repository Branch',
     )
-    updated_at: Optional[datetime] = Field(
+    updated_at: Optional[AwareDatetime] = Field(
         default=None,
         alias='updatedAt',
         description='The time this push event was received if has a sourceRef',
@@ -1359,7 +1509,7 @@ class StageSyncStatus(BaseModel):
         description='The last error message if the stage is in error state',
         title='Error Message',
     )
-    updated_at: Optional[datetime] = Field(
+    updated_at: Optional[AwareDatetime] = Field(
         default=None,
         alias='updatedAt',
         description='Last time this stage was synced from source or image repository',
@@ -1494,10 +1644,10 @@ class TimeFilter(BaseModel):
 
 
 class ResourceUsageSchema(BaseModel):
-    start_time: Optional[datetime] = Field(
+    start_time: Optional[AwareDatetime] = Field(
         default=None, description='The start time of the usage data', title='Start Time'
     )
-    end_time: Optional[datetime] = Field(
+    end_time: Optional[AwareDatetime] = Field(
         default=None, description='The end time of the usage data', title='End Time'
     )
     cpu: Optional[int] = Field(
@@ -1536,8 +1686,8 @@ class SourceSchema(BaseModel):
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
     object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
-    created_at: datetime = Field(..., title='Created At')
-    updated_at: datetime = Field(..., title='Updated At')
+    created_at: AwareDatetime = Field(..., title='Created At')
+    updated_at: AwareDatetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
     source_type: Optional[SourceType] = Field(default=None, title='Source Type')
     repository: Optional[Repository] = Field(default=None, title='Repository')
@@ -1554,14 +1704,14 @@ class StagedRunSchema(BaseModel):
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
     object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
-    created_at: datetime = Field(..., title='Created At')
-    updated_at: datetime = Field(..., title='Updated At')
+    created_at: AwareDatetime = Field(..., title='Created At')
+    updated_at: AwareDatetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
     arguments: Optional[dict[str, Any]] = Field(default=None, title='Arguments')
     message: Optional[str] = Field(default=None, title='Message')
     status: str = Field(..., max_length=20, title='Status')
-    started_at: Optional[datetime] = Field(default=None, title='Started At')
-    finished_at: Optional[datetime] = Field(default=None, title='Finished At')
+    started_at: Optional[AwareDatetime] = Field(default=None, title='Started At')
+    finished_at: Optional[AwareDatetime] = Field(default=None, title='Finished At')
 
 
 class TaskSchema(BaseModel):
@@ -1577,8 +1727,8 @@ class TaskSchema(BaseModel):
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
     object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
-    created_at: datetime = Field(..., title='Created At')
-    updated_at: datetime = Field(..., title='Updated At')
+    created_at: AwareDatetime = Field(..., title='Created At')
+    updated_at: AwareDatetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
 
 
@@ -1604,7 +1754,7 @@ class RevisionItemSchema(BaseModel):
         ..., description='The unique identifier of the spec revision', title='ID'
     )
     author: str = Field(..., title='Author')
-    created_at: datetime = Field(..., title='Created At')
+    created_at: AwareDatetime = Field(..., title='Created At')
     number: int = Field(default=0, title='Number')
     status: str = Field(default='created', max_length=20, title='Status')
 
@@ -1614,7 +1764,7 @@ class StageItemsSchema(BaseModel):
     name: str = Field(..., max_length=255, title='Name')
     status: str = Field(default='created', max_length=20, title='Status')
     error_message: str = Field(default='', title='Error Message')
-    updated_at: datetime = Field(..., title='Updated At')
+    updated_at: AwareDatetime = Field(..., title='Updated At')
 
 
 class GetProjectFilterSchema(BaseModel):
@@ -1700,8 +1850,8 @@ class TaskRunsSchema(BaseModel):
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
     object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
-    created_at: datetime = Field(..., title='Created At')
-    updated_at: datetime = Field(..., title='Updated At')
+    created_at: AwareDatetime = Field(..., title='Created At')
+    updated_at: AwareDatetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
     runs: list[StagedRunSchema] = Field(..., title='Runs')
 
@@ -1726,32 +1876,32 @@ class RunFilterSchema(BaseModel):
     name: Optional[str] = Field(
         default=None, description='Filter by Build, Task or Pipeline name', title='Name'
     )
-    created_after: Optional[datetime] = Field(
+    created_after: Optional[AwareDatetime] = Field(
         default=None,
         description='Filter by creation time (ISO format)',
         title='Created After',
     )
-    created_before: Optional[datetime] = Field(
+    created_before: Optional[AwareDatetime] = Field(
         default=None,
         description='Filter by creation time (ISO format)',
         title='Created Before',
     )
-    started_after: Optional[datetime] = Field(
+    started_after: Optional[AwareDatetime] = Field(
         default=None,
         description='Filter by start time (ISO format)',
         title='Started After',
     )
-    started_before: Optional[datetime] = Field(
+    started_before: Optional[AwareDatetime] = Field(
         default=None,
         description='Filter by end time (ISO format)',
         title='Started Before',
     )
-    finished_after: Optional[datetime] = Field(
+    finished_after: Optional[AwareDatetime] = Field(
         default=None,
         description='Filter by finish time (ISO format)',
         title='Finished After',
     )
-    finished_before: Optional[datetime] = Field(
+    finished_before: Optional[AwareDatetime] = Field(
         default=None,
         description='Filter by finish time (ISO format)',
         title='Finished Before',
@@ -1782,8 +1932,8 @@ class PipelineRunsSchema(BaseModel):
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
     object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
-    created_at: datetime = Field(..., title='Created At')
-    updated_at: datetime = Field(..., title='Updated At')
+    created_at: AwareDatetime = Field(..., title='Created At')
+    updated_at: AwareDatetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
     runs: list[StagedRunSchema] = Field(..., title='Runs')
 
@@ -1816,8 +1966,8 @@ class BuildRunsSchema(BaseModel):
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
     object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
-    created_at: datetime = Field(..., title='Created At')
-    updated_at: datetime = Field(..., title='Updated At')
+    created_at: AwareDatetime = Field(..., title='Created At')
+    updated_at: AwareDatetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
     runs: list[StagedRunSchema] = Field(..., title='Runs')
 
@@ -2377,8 +2527,8 @@ class BuildSchema(BaseModel):
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
     object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
-    created_at: datetime = Field(..., title='Created At')
-    updated_at: datetime = Field(..., title='Updated At')
+    created_at: AwareDatetime = Field(..., title='Created At')
+    updated_at: AwareDatetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
 
 
@@ -2403,8 +2553,8 @@ class PipelineSchema(BaseModel):
     name: str = Field(..., max_length=255, title='Name')
     description: Optional[str] = Field(default=None, title='Description')
     object_ref: Optional[ObjectRef] = Field(default=None, title='Object Ref')
-    created_at: datetime = Field(..., title='Created At')
-    updated_at: datetime = Field(..., title='Updated At')
+    created_at: AwareDatetime = Field(..., title='Created At')
+    updated_at: AwareDatetime = Field(..., title='Updated At')
     details: Optional[dict[str, Any]] = Field(default=None, title='Details')
 
 
@@ -2446,80 +2596,8 @@ class ProjectItemSchema(BaseModel):
         description='A description of the project, auto-generated from the spec',
         title='Description',
     )
-    created_at: datetime = Field(..., title='Created At')
+    created_at: AwareDatetime = Field(..., title='Created At')
     status: str = Field(default='created', max_length=20, title='Status')
-
-
-class BuildSpec(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    name: str = Field(
-        default='default',
-        description='The build name',
-        max_length=32,
-        title='Build Name',
-    )
-    description: Optional[str] = Field(default=None, title='Resource Description')
-    resources: Optional[ContainerResources] = Field(
-        default=None,
-        description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
-        title='Container Resources',
-    )
-    env: Optional[list[EnvVarValue]] = Field(
-        default=None, title='Container Environment Variables'
-    )
-    mounts: Optional[list[ProjectedVolumeMount]] = Field(
-        default=None,
-        description='List of existing ConfigMaps or Secrets references to mount in the container',
-        title='Container Mounts',
-    )
-    source_ref: Optional[Union[SourceRef, SourceRefParams]] = Field(
-        default=None,
-        alias='sourceRef',
-        description='The source repository reference from the list of connected repositories',
-        title='Source repository reference',
-    )
-    base_image: Optional[DockerImageURL] = Field(
-        default=None,
-        alias='baseImage',
-        description='        The build base-image, can be any public image, for private base images see imageRef field',
-        title='Base Image',
-    )
-    image_ref: Optional[ImageRef] = Field(
-        default=None,
-        alias='imageRef',
-        description='Image repository from the list of defined Project images to use as the base-image for this build',
-        title='Image Repository Reference',
-    )
-    credentials: Optional[BuildCredentials] = Field(
-        default=None,
-        description='The build credentials to be used for private base-image',
-        title='Build Credentials',
-    )
-    build_ref: Optional[BuildRef] = Field(
-        default=None,
-        alias='buildRef',
-        description='        The build reference name from the list of Build resources, to be used as the base-image for this build, cannot be used with baseImage field.        ',
-        title='Build Reference',
-    )
-    build_command: Optional[str] = Field(
-        default=None,
-        alias='buildCommand',
-        description='        The build command to be executed on the base-image, for multiple commands,        use a script file using a relative path from the source repository root and execute the script        in this field.        ',
-        title='Build Command',
-    )
-    test_command: Optional[str] = Field(
-        default=None,
-        alias='testCommand',
-        description='        The test command to be executed at the end of this image build, for mltiple commands,        use a script file using a relative path from the source repository root and execute the script        in this field.        ',
-        title='Test Command',
-    )
-    dockerfile: Optional[Union[Path, str]] = Field(
-        default=None,
-        description='        The Dockerfile path relative to source-code root, to be executed on the base-image,         Cannot be provided with baseImage or buildCommand.        ',
-        title='Build Dockerfile',
-    )
 
 
 class ContainerImageSpec(BaseModel):
@@ -2530,6 +2608,11 @@ class ContainerImageSpec(BaseModel):
         default=None, description='A Public Image Repository URL', title='Public Image'
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     resources: Optional[ContainerResources] = Field(
         default=None,
         description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
@@ -2603,7 +2686,7 @@ class StageDetailsSchema(BaseModel):
     name: str = Field(..., max_length=255, title='Name')
     status: str = Field(default='created', max_length=20, title='Status')
     error_message: str = Field(default='', title='Error Message')
-    updated_at: datetime = Field(..., title='Updated At')
+    updated_at: AwareDatetime = Field(..., title='Updated At')
     resources: Optional[StageResourcesSchema] = Field(
         default=None,
         description='The staged resources status details for the stage.',
@@ -2621,6 +2704,71 @@ class StageDetailsSchema(BaseModel):
     )
 
 
+class BuildSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: str = Field(
+        default='default',
+        description='The build name',
+        max_length=32,
+        title='Build Name',
+    )
+    description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
+    resources: Optional[ContainerResources] = Field(
+        default=None,
+        description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
+        title='Container Resources',
+    )
+    env: Optional[list[EnvVarValue]] = Field(
+        default=None, title='Container Environment Variables'
+    )
+    mounts: Optional[list[ProjectedVolumeMount]] = Field(
+        default=None,
+        description='List of existing ConfigMaps or Secrets references to mount in the container',
+        title='Container Mounts',
+    )
+    source_ref: Optional[Union[SourceRef, SourceRefParams]] = Field(
+        default=None,
+        alias='sourceRef',
+        description='The source repository reference from the list of connected repositories',
+        title='Source repository reference',
+    )
+    base_image: Optional[Union[DockerImageURL, ContainerImageSpec]] = Field(
+        default=None,
+        alias='baseImage',
+        description='        The build base-image, can be any public image, for private base images see imageRef field',
+        title='Base Image',
+    )
+    credentials: Optional[BuildCredentials] = Field(
+        default=None,
+        description='The build credentials to be used for private base-image',
+        title='Build Credentials',
+    )
+    build_command: Optional[str] = Field(
+        default=None,
+        alias='buildCommand',
+        description='        The build command to be executed on the base-image, for multiple commands,        use a script file using a relative path from the source repository root and execute the script        in this field.        ',
+        title='Build Command',
+    )
+    test_command: Optional[str] = Field(
+        default=None,
+        alias='testCommand',
+        description='        The test command to be executed at the end of this image build, for mltiple commands,        use a script file using a relative path from the source repository root and execute the script        in this field.        ',
+        title='Test Command',
+    )
+    dockerfile: Optional[Union[Path, str]] = Field(
+        default=None,
+        description='        The Dockerfile path relative to source-code root, to be executed on the base-image,         Cannot be provided with baseImage or buildCommand.        ',
+        title='Build Dockerfile',
+    )
+
+
 class ContainerCommandRequiredSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -2634,6 +2782,11 @@ class ContainerCommandRequiredSpec(BaseModel):
         title='Container Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     resources: Optional[ContainerResources] = Field(
         default=None,
         description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
@@ -2680,6 +2833,11 @@ class ContainerOverlay(BaseModel):
         title='Container Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     resources: Optional[ContainerResources] = Field(
         default=None,
         description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
@@ -2726,6 +2884,11 @@ class NotebookSpec(BaseModel):
         title='Container Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     resources: Optional[ContainerResources] = Field(
         default=None,
         description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
@@ -2884,10 +3047,20 @@ class PipelineDefaults(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    name: Optional[str] = Field(
-        default=None, description='name has no effect here', title='Container Name'
+    name: str = Field(
+        default='defaults',
+        description='Name is the name of the default task, defaults to "defaults"',
+        max_length=32,
+        min_length=3,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
+        title='Resource Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     resources: Optional[ContainerResources] = Field(
         default=None,
         description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
@@ -2901,10 +3074,8 @@ class PipelineDefaults(BaseModel):
         description='List of existing ConfigMaps or Secrets references to mount in the container',
         title='Container Mounts',
     )
-    image: Optional[str] = Field(
-        default=None,
-        description='Image is the container image to run. If the image is a public image, it is resolved using the public image repository. If the image is a private image, it is resolved using the private image repository.',
-        title='Container Image',
+    image: Optional[Union[DockerImageURL, ContainerImageSpec]] = Field(
+        default=None, description='A Public Image Repository URL', title='Public Image'
     )
     sidecars: Optional[list[ContainerCommandRequiredSpec]] = Field(
         default=None,
@@ -3040,6 +3211,11 @@ class ServiceOverlay(BaseModel):
         title='Container Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     resources: Optional[ContainerResources] = Field(
         default=None,
         description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
@@ -3113,6 +3289,11 @@ class ServiceSpec(BaseModel):
         title='Container Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     resources: Optional[ContainerResources] = Field(
         default=None,
         description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
@@ -3208,6 +3389,11 @@ class TaskSpec(BaseModel):
         title='Task Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     resources: Optional[ContainerResources] = Field(
         default=None,
         description='The machine (CPU, memory, disk) resource-requirements, if not provided a system default or parent resource attribute will be applied',
@@ -3280,6 +3466,11 @@ class PipelineSpec(BaseModel):
         title='Resource Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     arguments: Optional[PipelineArguments] = Field(
         default=None,
         description='Arguments are the parameter and artifact arguments to the template',
@@ -3366,6 +3557,11 @@ class StageSpec(BaseModel):
         title='Stage Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     active: Optional[bool] = Field(
         default=True,
         description='Whether this stage is active or not',
@@ -3397,6 +3593,11 @@ class ProjectResourcesSpec(BaseModel):
     )
     secrets: list[SecretSpec] = Field(
         default=[], description='List of project secrets', title='Project Secrets'
+    )
+    channels: list[NotificationChannel] = Field(
+        default=[],
+        description='List of project notification channels',
+        title='Project Notification Channels',
     )
     images: list[ImageSpec] = Field(
         default=[], description='List of project images', title='Project Images'
@@ -3440,6 +3641,11 @@ class ProjectSpec(BaseModel):
         title='Resource Name',
     )
     description: Optional[str] = Field(default=None, title='Resource Description')
+    notifications: Optional[list[BaseNotificationConfig]] = Field(
+        default=None,
+        description='List of notification configurations for the resource',
+        title='Notifications',
+    )
     version: str = Field(
         default='v1',
         description='The Project Specification version',
@@ -3472,7 +3678,7 @@ class RevisionDetailsSchema(BaseModel):
         ..., description='The unique identifier of the spec revision', title='ID'
     )
     author: str = Field(..., title='Author')
-    created_at: datetime = Field(..., title='Created At')
+    created_at: AwareDatetime = Field(..., title='Created At')
     number: int = Field(default=0, title='Number')
     status: str = Field(default='created', max_length=20, title='Status')
     spec: ProjectSpec = Field(..., description='The project spec', title='Spec')
@@ -3507,7 +3713,7 @@ class ProjectDetailsSchema(BaseModel):
         description='A description of the project, auto-generated from the spec',
         title='Description',
     )
-    created_at: datetime = Field(..., title='Created At')
+    created_at: AwareDatetime = Field(..., title='Created At')
     status: str = Field(default='created', max_length=20, title='Status')
     cumulative_usage: ResourceUsageSchema = Field(
         default_factory=lambda: ResourceUsageSchema.model_validate(
