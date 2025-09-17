@@ -28,13 +28,13 @@ class TestPRAXCommands(TestCase):
             name='test-route',
             org='test-org',
             display_name='test-route',
-            created_at=datetime.now().replace(tzinfo=timezone.utc),
-            updated_at=datetime.now().replace(tzinfo=timezone.utc),
+            created_at=datetime.now(tz=timezone.utc),
+            updated_at=datetime.now(tz=timezone.utc),
             project='test-project',
             stage='test-stage',
             tier='frontend',
             status='active',
-            url='http://test-route'
+            url='http://test-route',
         )
         with patch('oceanum.cli.prax.client.PRAXClient.get_route', return_value=route) as mock_get:
             result = self.runner.invoke(main, ['prax','describe','route','test-route'])

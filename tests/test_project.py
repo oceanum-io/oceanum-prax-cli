@@ -394,7 +394,7 @@ class TestAllowProject(TestCase):
                 result = runner.invoke(oceanum_main, ['prax', 'allow', 'project', 'test-project','--user','some-user','--change'])
                 assert result.exit_code == 0
 
-timestamp = datetime.now().replace(tzinfo=timezone.utc).isoformat()
+timestamp = datetime.now(tz=timezone.utc).isoformat()
 
 class TestListSources(TestCase):
     def test_list_sources_help(self):

@@ -2,7 +2,7 @@ import click
 import pytest
 from click.testing import CliRunner
 from unittest.mock import Mock, patch, ANY
-from datetime import datetime
+from datetime import datetime, timezone
 from requests import Response
 
 from oceanum.cli import main
@@ -13,7 +13,7 @@ from oceanum.cli.prax.workflows import (
 from oceanum.cli.prax import models
 from oceanum.cli.models import TokenResponse, Auth0Config
 
-timestamp = datetime.now().isoformat()
+timestamp = datetime.now(tz=timezone.utc).isoformat()
 
 @pytest.fixture
 def mock_response():

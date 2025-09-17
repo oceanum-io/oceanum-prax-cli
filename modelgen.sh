@@ -3,7 +3,7 @@ datamodel-codegen \
     --url "${1}openapi.json" \
     --input-file-type openapi \
     --output src/oceanum/cli/prax/models.py \
-    --target-python-version "3.10" \
+    --target-python-version "3.11" \
     --output-model-type pydantic_v2.BaseModel \
     --snake-case-field \
     --use-default-kwarg \
