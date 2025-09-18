@@ -32,7 +32,7 @@ dependencies = [
   "click",
   "platformdirs",
   "pydantic[email]",
-  "python-jsonpath",
+  "python-jsonpath<2.0.0",
   "requests",
   "tabulate",
   "humanize",
