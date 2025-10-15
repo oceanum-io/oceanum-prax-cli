@@ -196,6 +196,27 @@ class TestPipelineCommands:
         assert result.exit_code == 0
         assert "Pipeline retried successfully" in result.output
 
+    def test_delete_pipeline_run_success(self, runner, mock_client, mock_response):
+        mock_client.return_value = ("Pipeline run deleted successfully!", None)
+        with patch('oceanum.cli.prax.client.PRAXClient.get_pipeline_run', 
+            return_value=models.StagedRunSchema(
+                id="run-123",
+                name="test-pipeline",
+                project="test-project",
+                stage="dev",
+                org="test-org",
+                created_at=timestamp,
+                updated_at=timestamp,
+                status="succeeded",
+        )):
+            with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
+                result = runner.invoke(main, ['prax', 'delete', 'pipeline', 'test-pipeline'])
+                assert result.exit_code == 0
+                assert "deleted successfully" in result.output
+                mock_client.assert_called_with("DELETE", "pipeline-runs/test-pipeline", 
+                    params={"project": None, "org": None, "user": None, "stage": None}
+                )
+
     def test_get_pipeline_logs(self, runner, mock_client, mock_response):
         pipeline_get_response = models.PipelineSchema(**{
             "id": "pipeline-123",
@@ -367,6 +388,28 @@ class TestTaskCommands:
                 assert result.exit_code == 0
                 assert "Log line 1" in result.output
 
+    def test_delete_task_run_success(self, runner, mock_client, mock_response):
+        mock_client.return_value = ("Task run deleted successfully!", None)
+        with patch('oceanum.cli.prax.client.PRAXClient.get_task_run', 
+                   return_value=models.StagedRunSchema(
+            id="run-123",
+            name="test-task",
+            project="test-project",
+            stage="dev",
+            org="test-org",
+            created_at=timestamp,
+            updated_at=timestamp,
+            status="succeeded",
+            runs=[]
+        )):
+            with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
+                result = runner.invoke(main, ['prax', 'delete', 'task', 'test-task'])
+                assert result.exit_code == 0
+                assert "deleted successfully" in result.output
+                mock_client.assert_called_with("DELETE", "task-runs/test-task", 
+                    params={"project": None, "org": None, "user": None, "stage": None}
+                )
+
 class TestBuildCommands:
     def test_list_builds_success(self, runner, mock_client, mock_response):
         mock_response = [
@@ -468,3 +511,24 @@ class TestBuildCommands:
                 assert "Log line 1" in result.output
 
 
+    def test_delete_build_run_success(self, runner, mock_client, mock_response):
+        mock_client.return_value = ("Build run deleted successfully!", None)
+        with patch('oceanum.cli.prax.client.PRAXClient.get_build_run', return_value=models.StagedRunSchema(
+            id="run-123",
+            name="test-build",
+            project="test-project",
+            stage="dev",
+            org="test-org",
+            created_at=timestamp,
+            updated_at=timestamp,
+            status="succeeded",
+            runs=[]
+        )):
+            with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
+                result = runner.invoke(main, ['prax', 'delete', 'build', 'test-build'])
+                print(result.output)
+                assert result.exit_code == 0
+                assert "deleted successfully" in result.output
+                mock_client.assert_called_with("DELETE", "build-runs/test-build", 
+                    params={"project": None, "org": None, "user": None, "stage": None}
+                )

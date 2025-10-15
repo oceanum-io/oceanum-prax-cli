@@ -8,7 +8,7 @@ from oceanum.cli.symbols import chk, err, spin, wrn
 from oceanum.cli.utils import format_dt
 
 from . import models
-from .main import list_group, describe, submit, terminate, retry, logs
+from .main import list_group, describe, submit, terminate, retry, logs, delete
 from .client import PRAXClient
 from .project import (
     project_org_option,
@@ -283,6 +283,30 @@ def get_task_logs(ctx: click.Context, name: str, lines: int, follow: bool, **fil
             sys.exit(1)
         click.echo(line)
 
+@delete.command(name='task', help='Delete PRAX Task')
+@click.pass_context
+@name_argument
+@project_org_option
+@project_user_option
+@project_name_option
+@project_stage_option
+@login_required
+def delete_task(ctx: click.Context, name: str, **filters):
+    client = PRAXClient(ctx)
+    task = client.get_task_run(name)
+    if isinstance(task, models.ErrorResponse):
+        click.echo(f" {err} Error fetching task:")
+        echoerr(task)
+        sys.exit(1)
+    else:
+        resp = client.delete_task_run(name, **filters)
+        if isinstance(resp, models.ErrorResponse):
+            click.echo(f" {err} Error deleting task:")
+            echoerr(resp)
+            sys.exit(1)
+        else:
+            click.echo(f"{chk} Task deleted successfully!")
+
 
 @list_group.command(name='builds', help='List all PRAX Builds')
 @click.pass_context
@@ -475,6 +499,29 @@ def get_build_logs(ctx: click.Context, name: str, lines: int, follow: bool, **fi
             sys.exit(1)
         click.echo(line)
 
+@delete.command(name='build', help='Delete PRAX Build')
+@click.pass_context
+@name_argument
+@project_org_option
+@project_user_option
+@project_name_option
+@project_stage_option
+@login_required
+def delete_build(ctx: click.Context, name: str, **filters):
+    client = PRAXClient(ctx)
+    build = client.get_build_run(name)
+    if isinstance(build, models.ErrorResponse):
+        click.echo(f" {err} Error fetching build:")
+        echoerr(build)
+        sys.exit(1)
+    else:
+        resp = client.delete_build_run(name, **filters)
+        if isinstance(resp, models.ErrorResponse):
+            click.echo(f" {err} Error deleting build:")
+            echoerr(resp)
+            sys.exit(1)
+        else:
+            click.echo(f"{chk} Build deleted successfully!")
 
 @describe.command(name='pipeline', help='Describe PRAX Pipeline')
 @click.pass_context
@@ -645,6 +692,30 @@ def get_pipeline_logs(ctx: click.Context, name: str, lines: int, follow: bool, *
             echoerr(line)
             sys.exit(1)
         click.echo(line)
+
+@delete.command(name='pipeline', help='Delete PRAX Pipeline')
+@click.pass_context
+@name_argument
+@project_org_option
+@project_user_option
+@project_name_option
+@project_stage_option
+@login_required
+def delete_pipeline(ctx: click.Context, name: str, **filters):
+    client = PRAXClient(ctx)
+    pipeline = client.get_pipeline_run(name, **filters)
+    if isinstance(pipeline, models.ErrorResponse):
+        click.echo(f" {err} Error fetching pipeline:")
+        echoerr(pipeline)
+        sys.exit(1)
+    else:
+        resp = client.delete_pipeline_run(name, **filters)
+        if isinstance(resp, models.ErrorResponse):
+            click.echo(f" {err} Error deleting pipeline:")
+            echoerr(resp)
+            sys.exit(1)
+        else:
+            click.echo(f"{chk} Pipeline deleted successfully!")
 
 # @stop.command(name='pipeline', help='Stop PRAX Pipeline')
 # @click.pass_context

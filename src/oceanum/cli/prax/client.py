@@ -481,6 +481,10 @@ class PRAXClient:
         retry_task_run_err = models.ErrorResponse(detail=f"Failed to retry task run '{run_name}'!")
         return obj if isinstance(obj, models.StagedRunSchema) else errs or retry_task_run_err
 
+    def delete_task_run(self, run_name: str, **filters) -> str | models.ErrorResponse:
+        _, errs = self._request('DELETE', f'task-runs/{run_name}', params=filters or None)
+        return errs if errs else "Task run deleted successfully!"
+    
     def list_pipelines(self, **filters) -> list[models.PipelineSchema] | models.ErrorResponse:
         obj, errs = self._request('GET', 'pipelines', params=filters or None, schema=models.PipelineSchema)
         list_pipelines_err = models.ErrorResponse(detail="Failed to list pipelines!")
@@ -525,6 +529,10 @@ class PRAXClient:
         retry_pipeline_run_err = models.ErrorResponse(detail=f"Failed to retry pipeline run '{run_name}'!")
         return obj if isinstance(obj, models.StagedRunSchema) else errs or retry_pipeline_run_err
     
+    def delete_pipeline_run(self, run_name: str, **filters) -> str | models.ErrorResponse:
+        _, errs = self._request('DELETE', f'pipeline-runs/{run_name}', params=filters or None)
+        return errs if errs else "Pipeline run deleted successfully!"
+
     def list_builds(self, **filters) -> list[models.BuildSchema] | models.ErrorResponse:
         obj, errs = self._request('GET', 'builds', params=filters or None, schema=models.BuildSchema)
         list_builds_err = models.ErrorResponse(detail="Failed to list builds!")
@@ -561,6 +569,10 @@ class PRAXClient:
                                   schema=models.StagedRunSchema)
         retry_build_run_err = models.ErrorResponse(detail=f"Failed to retry build run '{run_name}'!")
         return obj if isinstance(obj, models.StagedRunSchema) else errs or retry_build_run_err
+    
+    def delete_build_run(self, run_name: str, **filters) -> str | models.ErrorResponse:
+        _, errs = self._request('DELETE', f'build-runs/{run_name}', params=filters or None)
+        return errs if errs else "Build run deleted successfully!"
     
     def list_routes(self, **filters) -> list[models.RouteSchema] | models.ErrorResponse:
         obj, errs = self._request('GET', 'routes', params=filters or None, 
@@ -629,8 +641,7 @@ class PRAXClient:
             endpoint='routes', 
             **filters
         )
-        
-    
+            
     def update_route_thumbnail(self, route_name: str, thumbnail: click.File) -> models.RouteSchema | models.ErrorResponse:
         files = {'thumbnail': thumbnail}
         obj, errs = self._request('POST',f'routes/{route_name}/thumbnail', files=files, schema=models.RouteSchema)
