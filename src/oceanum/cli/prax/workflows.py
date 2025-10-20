@@ -8,7 +8,7 @@ from oceanum.cli.symbols import chk, err, spin, wrn
 from oceanum.cli.utils import format_dt
 
 from . import models
-from .main import list_group, describe, submit, terminate, retry, logs, delete
+from .main import list_group, describe, submit, terminate, retry, logs, delete, download
 from .client import PRAXClient
 from .project import (
     project_org_option,
@@ -282,6 +282,38 @@ def get_task_logs(ctx: click.Context, name: str, lines: int, follow: bool, **fil
             echoerr(line)
             sys.exit(1)
         click.echo(line)
+
+@download.command(name='task-artifact', help='Download PRAX Task Artifact')
+@click.pass_context
+@name_argument
+@project_org_option
+@project_user_option
+@project_name_option
+@project_stage_option
+@click.option('-a','--artifact-name', help='Name of the artifact to download', required=True, type=str)
+@login_required
+def download_task_artifact(
+    ctx: click.Context,
+    name: str,
+    artifact_name: str,
+    **filters
+):
+    client = PRAXClient(ctx)
+    task = client.get_task(name, **filters)
+    if isinstance(task, models.TaskSchema):
+        task_run = task.last_run
+    else:
+        task_run = client.get_task_run(name)
+        if task_run is None:
+            click.echo(f" {err} No task run found for task: {name}")
+            sys.exit(1)
+    if isinstance(task_run, models.ErrorResponse):
+        click.echo(f" {err} Error fetching task run:")
+        echoerr(task_run)
+        sys.exit(1)
+    if client.download_task_run_artifact(task_run.name, artifact_name):
+        click.echo(f" {chk} Artifact '{artifact_name}' downloaded successfully!")
+
 
 @delete.command(name='task', help='Delete PRAX Task')
 @click.pass_context
@@ -692,6 +724,44 @@ def get_pipeline_logs(ctx: click.Context, name: str, lines: int, follow: bool, *
             echoerr(line)
             sys.exit(1)
         click.echo(line)
+
+@download.command(name='pipeline-artifact', help='Download PRAX Pipeline Artifact')
+@click.pass_context
+@name_argument
+@project_org_option
+@project_user_option
+@project_name_option
+@project_stage_option
+@click.option('-a','--artifact-name', help='Name of the artifact to download', required=True, type=str)
+@click.option('-s','--step-name', help='Name of the pipeline step which produced the artifact', required=True, type=str)
+@login_required
+def download_pipeline_artifact(
+    ctx: click.Context,
+    name: str,
+    artifact_name: str,
+    step_name: str,
+    **filters
+):
+    client = PRAXClient(ctx)
+    pipeline = client.get_pipeline(name, **filters)
+    if isinstance(pipeline, models.PipelineSchema):
+        pipeline_run = pipeline.last_run
+    else:
+        pipeline_run = client.get_pipeline_run(name, **filters)
+        if pipeline_run is None:
+            click.echo(f" {err} No pipeline run found for pipeline: {name}")
+            sys.exit(1)
+    if isinstance(pipeline_run, models.ErrorResponse):
+        click.echo(f" {err} Error fetching pipeline run:")
+        echoerr(pipeline_run)
+        sys.exit(1)
+    if client.download_pipeline_run_artifact(
+        pipeline_run.name, 
+        artifact_name,
+        step_name,
+    ):
+        click.echo(f" {chk} Artifact '{artifact_name}' from step '{step_name}' downloaded successfully!")
+
 
 @delete.command(name='pipeline', help='Delete PRAX Pipeline')
 @click.pass_context

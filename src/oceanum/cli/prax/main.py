@@ -51,3 +51,7 @@ def allow():
 @prax.group(name='logs',help='View container logs')
 def logs():
     pass
+
+@prax.group(name='download', help='Download artifacts')
+def download():
+    pass

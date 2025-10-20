@@ -440,8 +440,6 @@ class PRAXClient:
         return obj if isinstance(obj, models.SecretSpec) else errs or secret_err
 
 
-
-
     def list_sources(self, **filters) -> list[models.SourceSchema] | models.ErrorResponse:
         obj, errs = self._request('GET', 'sources', params=filters or None, schema=models.SourceSchema)
         list_sources_err = models.ErrorResponse(detail="Failed to list sources!")
@@ -586,6 +584,37 @@ class PRAXClient:
         get_route_err = models.ErrorResponse(detail=f"Failed to get route '{route_name}'!")
         return obj if isinstance(obj, models.RouteSchema) else errs or get_route_err
     
+    def _download_artifact(self, 
+        resource_type: Literal['task','pipeline'],
+        resource_name: str,
+        artifact_name: str,
+        step_name: str|None = None,
+        #force: bool = False,
+    ) -> bool:
+        if resource_type == 'pipeline' and 'step_name' is None:
+            click.echo(f" {err} 'step_name' is required to download artifact from pipeline runs!")
+            return False
+        elif resource_type == 'pipeline' and step_name is not None:
+            url = f'pipeline-runs/{resource_name}/artifacts/{step_name}/{artifact_name}'
+        else:
+            url = f'task-runs/{resource_name}/artifacts/{artifact_name}'
+        output_dir = Path(os.getcwd())
+        output_file = f'{artifact_name}.gz'
+        artifact_path = output_dir / output_file
+        click.echo(f" {spin} Downloading artifact '{artifact_name}' from {resource_type.title()}-Run '{resource_name}' to '{output_file}' file...")
+        response, errs = self._request('GET', url, schema=None, stream=True)
+        if errs:
+            click.echo(f" {err} Failed to download artifact '{artifact_name}' from {resource_type} '{resource_name}'!")
+            click.echo(f" {wrn} {errs.detail}")
+            return False
+        elif isinstance(response, requests.Response) and response.ok:
+            with open(artifact_path, 'w+b') as f:
+                for chunk in response.raw.stream(1024, decode_content=False):
+                    f.write(chunk)
+            return True
+        click.echo(f" {err} Failed to download artifact '{artifact_name}' from {resource_type} '{resource_name}'!")
+        return False
+    
     def _get_logs(self, 
         run_name: str, 
         lines: int, 
@@ -605,6 +634,30 @@ class PRAXClient:
                 yield line
         else:
             yield errs if errs else models.ErrorResponse(detail=response.text)
+
+    def download_task_run_artifact(self, 
+        task_run_name: str, 
+        artifact_name: str, 
+        output_path: str|None = None
+    ) -> bool:
+        return self._download_artifact(
+            resource_type='task',
+            resource_name=task_run_name,
+            artifact_name=artifact_name,
+        )
+
+    def download_pipeline_run_artifact(self,
+        pipeline_run_name: str, 
+        artifact_name: str, 
+        step_name: str,
+        output_path: str|None = None
+    ) -> bool:
+        return self._download_artifact(
+            resource_type='pipeline',
+            resource_name=pipeline_run_name,
+            artifact_name=artifact_name,
+            step_name=step_name,
+        )
     
     def get_build_run_logs(self, run_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:
         yield from self._get_logs(
