@@ -589,6 +589,7 @@ class PRAXClient:
         resource_name: str,
         artifact_name: str,
         step_name: str|None = None,
+        output_path: str|None = None,
         #force: bool = False,
     ) -> bool:
         if resource_type == 'pipeline' and 'step_name' is None:
@@ -598,9 +599,14 @@ class PRAXClient:
             url = f'pipeline-runs/{resource_name}/artifacts/{step_name}/{artifact_name}'
         else:
             url = f'task-runs/{resource_name}/artifacts/{artifact_name}'
-        output_dir = Path(os.getcwd())
-        output_file = f'{artifact_name}.gz'
-        artifact_path = output_dir / output_file
+        if output_path is not None:
+            output_dir = Path(output_path).parent
+            output_file = Path(output_path).name
+            artifact_path = output_dir / output_file
+        else:
+            output_dir = Path(os.getcwd())
+            output_file = f'{artifact_name}.gz'
+            artifact_path = output_dir / output_file
         click.echo(f" {spin} Downloading artifact '{artifact_name}' from {resource_type.title()}-Run '{resource_name}' to '{output_file}' file...")
         response, errs = self._request('GET', url, schema=None, stream=True)
         if errs:
@@ -644,6 +650,7 @@ class PRAXClient:
             resource_type='task',
             resource_name=task_run_name,
             artifact_name=artifact_name,
+            output_path=output_path,
         )
 
     def download_pipeline_run_artifact(self,
@@ -657,6 +664,7 @@ class PRAXClient:
             resource_name=pipeline_run_name,
             artifact_name=artifact_name,
             step_name=step_name,
+            output_path=output_path,
         )
     
     def get_build_run_logs(self, run_name: str, lines: int, follow: bool, **filters) -> Iterable[str|models.ErrorResponse]:

@@ -283,7 +283,7 @@ def get_task_logs(ctx: click.Context, name: str, lines: int, follow: bool, **fil
             sys.exit(1)
         click.echo(line)
 
-@download.command(name='task-artifact', help='Download PRAX Task Artifact')
+@download.command(name='task-artifact', help='Download PRAX Task output Artifact')
 @click.pass_context
 @name_argument
 @project_org_option
@@ -291,27 +291,32 @@ def get_task_logs(ctx: click.Context, name: str, lines: int, follow: bool, **fil
 @project_name_option
 @project_stage_option
 @click.option('-a','--artifact-name', help='Name of the artifact to download', required=True, type=str)
+@click.option('-o','--output', help='Output path to save the artifact (a .gz file)', default=None, type=str)
 @login_required
 def download_task_artifact(
     ctx: click.Context,
     name: str,
     artifact_name: str,
+    output: str|None,
     **filters
 ):
     client = PRAXClient(ctx)
     task = client.get_task(name, **filters)
+
     if isinstance(task, models.TaskSchema):
         task_run = task.last_run
     else:
         task_run = client.get_task_run(name)
-        if task_run is None:
-            click.echo(f" {err} No task run found for task: {name}")
-            sys.exit(1)
+    if task_run is None:
+        click.echo(f" {err} No task run found for task: {name}")
+        sys.exit(1)
+    
     if isinstance(task_run, models.ErrorResponse):
         click.echo(f" {err} Error fetching task run:")
         echoerr(task_run)
         sys.exit(1)
-    if client.download_task_run_artifact(task_run.name, artifact_name):
+    
+    if client.download_task_run_artifact(task_run.name, artifact_name, output):
         click.echo(f" {chk} Artifact '{artifact_name}' downloaded successfully!")
 
 
@@ -725,7 +730,7 @@ def get_pipeline_logs(ctx: click.Context, name: str, lines: int, follow: bool, *
             sys.exit(1)
         click.echo(line)
 
-@download.command(name='pipeline-artifact', help='Download PRAX Pipeline Artifact')
+@download.command(name='pipeline-artifact', help='Download PRAX Pipeline Step output Artifact')
 @click.pass_context
 @name_argument
 @project_org_option
@@ -734,12 +739,14 @@ def get_pipeline_logs(ctx: click.Context, name: str, lines: int, follow: bool, *
 @project_stage_option
 @click.option('-a','--artifact-name', help='Name of the artifact to download', required=True, type=str)
 @click.option('-s','--step-name', help='Name of the pipeline step which produced the artifact', required=True, type=str)
+@click.option('-o','--output', help='Output path to save the artifact (a .gz file)', default=None, type=str)
 @login_required
 def download_pipeline_artifact(
     ctx: click.Context,
     name: str,
     artifact_name: str,
     step_name: str,
+    output: str|None = None,
     **filters
 ):
     client = PRAXClient(ctx)
@@ -748,17 +755,21 @@ def download_pipeline_artifact(
         pipeline_run = pipeline.last_run
     else:
         pipeline_run = client.get_pipeline_run(name, **filters)
-        if pipeline_run is None:
-            click.echo(f" {err} No pipeline run found for pipeline: {name}")
-            sys.exit(1)
+    
+    if pipeline_run is None:
+        click.echo(f" {err} No pipeline run found for pipeline: {name}")
+        sys.exit(1)
+    
     if isinstance(pipeline_run, models.ErrorResponse):
         click.echo(f" {err} Error fetching pipeline run:")
         echoerr(pipeline_run)
         sys.exit(1)
+    
     if client.download_pipeline_run_artifact(
         pipeline_run.name, 
         artifact_name,
         step_name,
+        output
     ):
         click.echo(f" {chk} Artifact '{artifact_name}' from step '{step_name}' downloaded successfully!")
 

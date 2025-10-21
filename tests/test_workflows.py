@@ -1,4 +1,8 @@
-import click
+import tempfile
+import os
+from io import BytesIO
+from unittest.mock import Mock, patch, mock_open
+
 import pytest
 from click.testing import CliRunner
 from unittest.mock import Mock, patch, ANY
@@ -13,7 +17,7 @@ from oceanum.cli.prax.workflows import (
 from oceanum.cli.prax import models
 from oceanum.cli.models import TokenResponse, Auth0Config
 
-timestamp = datetime.now(tz=timezone.utc).isoformat()
+timestamp = datetime.now(tz=timezone.utc)
 
 @pytest.fixture
 def mock_response():
@@ -532,3 +536,247 @@ class TestBuildCommands:
                 mock_client.assert_called_with("DELETE", "build-runs/test-build", 
                     params={"project": None, "org": None, "user": None, "stage": None}
                 )
+
+
+# Add these test classes to your existing test file
+
+class TestDownloadCommands:
+    def test_download_task_artifact_success(self, runner, mock_client, mock_response):
+        # Mock the get_task_run preflight check
+        mock_task_run = models.StagedRunSchema(
+            id="test-task-run-123",
+            org="test-org",
+            project="test-project",
+            stage="dev",
+            name="test-task-run-123",
+            status="Succeeded",
+            created_at=timestamp,
+            updated_at=timestamp,
+            message="Completed successfully"
+        )
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = os.path.join(temp_dir, 'test_artifact.gz')
+            
+            with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
+                with patch('oceanum.cli.prax.workflows.PRAXClient') as mock_prax_client:
+                    client_instance = Mock()
+                    client_instance.get_task_run.return_value = mock_task_run
+                    client_instance.download_task_run_artifact.return_value = True
+                    mock_prax_client.return_value = client_instance
+                    
+                    result = runner.invoke(main, [
+                        'prax', 'download', 'task-artifact', 'test-task-run-123',
+                        '--artifact-name', 'test-artifact',
+                        '--output', output_path
+                    ])
+                    print(result.output)
+                    assert result.exit_code == 0
+                    assert "Artifact 'test-artifact' downloaded successfully!" in result.output
+                    
+                    # Verify the client calls
+                    client_instance.get_task_run.assert_called_once_with("test-task-run-123")
+                    client_instance.download_task_run_artifact.assert_called_once_with(
+                        "test-task-run-123", "test-artifact", output_path
+                    )
+
+    def test_download_task_artifact_default_path(self, runner, mock_client, mock_response):
+        mock_task_run = models.StagedRunSchema(
+            id="test-task-run-123",
+            org="test-org",
+            project="test-project",
+            stage="dev",
+            name="test-task-run-123",
+            status="Succeeded",
+            created_at=timestamp,
+            updated_at=timestamp,
+            message="Completed successfully"
+        )
+        
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
+            with patch('oceanum.cli.prax.workflows.PRAXClient') as mock_prax_client:
+                client_instance = Mock()
+                client_instance.get_task_run.return_value = mock_task_run
+                client_instance.download_task_run_artifact.return_value = True
+                mock_prax_client.return_value = client_instance
+                
+                result = runner.invoke(main, [
+                    'prax', 'download', 'task-artifact', 'test-task-run',
+                    '--artifact-name', 'test-artifact'
+                ])
+                
+                assert result.exit_code == 0
+                # Should use None for output path (default behavior)
+                client_instance.download_task_run_artifact.assert_called_once_with(
+                    "test-task-run-123", "test-artifact", None
+                )
+
+    def test_download_task_artifact_task_not_found(self, runner, mock_client):
+        error_response = models.ErrorResponse(detail="Task run not found!")
+        
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
+            with patch('oceanum.cli.prax.workflows.PRAXClient') as mock_prax_client:
+                client_instance = Mock()
+                client_instance.get_task_run.return_value = error_response
+                mock_prax_client.return_value = client_instance
+                
+                result = runner.invoke(main, [
+                    'prax', 'download', 'task-artifact', 'nonexistent-task',
+                    '--artifact-name', 'test-artifact'
+                ])
+                
+                assert result.exit_code == 1
+                assert "Error fetching task run:" in result.output
+
+    def test_download_task_artifact_download_failed(self, runner, mock_client):
+        mock_task_run = models.StagedRunSchema(
+            id="test-task-run-123",
+            org="test-org",
+            project="test-project",
+            stage="dev",
+            name="test-task-run-123",
+            status="Succeeded",
+            created_at=timestamp,
+            updated_at=timestamp,
+            message="Completed successfully"
+        )
+        
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
+            with patch('oceanum.cli.prax.workflows.PRAXClient') as mock_prax_client:
+                client_instance = Mock()
+                client_instance.get_task_run.return_value = mock_task_run
+                client_instance.download_task_run_artifact.return_value = False
+                mock_prax_client.return_value = client_instance
+                
+                result = runner.invoke(main, [
+                    'prax', 'download', 'task-artifact', 'test-task-run',
+                    '--artifact-name', 'test-artifact'
+                ])
+                
+                # Should not print success message if download returns False
+                assert "Artifact 'test-artifact' downloaded successfully!" not in result.output
+
+    def test_download_pipeline_artifact_success(self, runner, mock_client, mock_response):
+        mock_pipeline_run = models.StagedRunSchema(
+            id="test-pipeline-run-456",
+            org="test-org",
+            project="test-project",
+            stage="dev",
+            name="test-pipeline-run-456",
+            status="Succeeded",
+            created_at=timestamp,
+            updated_at=timestamp,
+            message="Pipeline completed successfully"
+        )
+        
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
+            with patch('oceanum.cli.prax.workflows.PRAXClient') as mock_prax_client:
+                client_instance = Mock()
+                client_instance.get_pipeline_run.return_value = mock_pipeline_run
+                client_instance.download_pipeline_run_artifact.return_value = True
+                mock_prax_client.return_value = client_instance
+                
+                result = runner.invoke(main, [
+                    'prax', 'download', 'pipeline-artifact', 'test-pipeline-run',
+                    '--artifact-name', 'test-artifact',
+                    '--step-name', 'test-step',
+                    '--output', '/tmp/pipeline_artifact.gz'
+                ])
+                
+                assert result.exit_code == 0
+                assert "Artifact 'test-artifact' from step 'test-step' downloaded successfully!" in result.output
+                
+                # Verify the client calls
+                client_instance.get_pipeline_run.assert_called_once_with(
+                    "test-pipeline-run", 
+                    org=None, user=None, project=None, stage=None
+                )
+                client_instance.download_pipeline_run_artifact.assert_called_once_with(
+                    "test-pipeline-run-456", "test-artifact", "test-step", "/tmp/pipeline_artifact.gz"
+                )
+
+    def test_download_pipeline_artifact_missing_step_name(self, runner, mock_client):
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
+            result = runner.invoke(main, [
+                'prax', 'download', 'pipeline-artifact', 'test-pipeline-run',
+                '--artifact-name', 'test-artifact'
+                # Missing --step-name
+            ])
+            
+            # Should fail due to missing required step-name argument
+            assert result.exit_code != 0
+            assert "Missing option" in result.output or "Error" in result.output
+
+    def test_download_pipeline_artifact_from_pipeline_schema(self, runner, mock_client):
+        """Test when we get pipeline from get_pipeline instead of get_pipeline_run"""
+        mock_pipeline_run = models.StagedRunSchema(
+            id="test-pipeline-run-456",
+            org="test-org",
+            project="test-project",
+            stage="dev",
+            name="test-pipeline-run-456",
+            status="Succeeded",
+            created_at=timestamp,
+            updated_at=timestamp,
+            message="Pipeline completed successfully"
+        )
+        
+        mock_pipeline = models.PipelineSchema(
+            id="pipeline-123",
+            name="test-pipeline",
+            project="test-project",
+            stage="dev",
+            org="test-org",
+            created_at=timestamp,
+            updated_at=timestamp,
+            last_run=mock_pipeline_run
+        )
+        
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
+            with patch('oceanum.cli.prax.workflows.PRAXClient') as mock_prax_client:
+                client_instance = Mock()
+                client_instance.get_pipeline.return_value = mock_pipeline
+                client_instance.download_pipeline_run_artifact.return_value = True
+                mock_prax_client.return_value = client_instance
+                
+                result = runner.invoke(main, [
+                    'prax', 'download', 'pipeline-artifact', 'test-pipeline',
+                    '--artifact-name', 'test-artifact',
+                    '--step-name', 'test-step'
+                ])
+                
+                assert result.exit_code == 0
+                
+                # Should use the last_run from the pipeline schema
+                client_instance.download_pipeline_run_artifact.assert_called_once_with(
+                    "test-pipeline-run-456", "test-artifact", "test-step", None
+                )
+
+    def test_download_pipeline_artifact_no_run_found(self, runner, mock_client):
+        """Test when pipeline has no last_run and get_pipeline_run returns None"""
+        mock_pipeline = models.PipelineSchema(
+            id="pipeline-123",
+            name="test-pipeline",
+            project="test-project",
+            stage="dev",
+            org="test-org",
+            created_at=timestamp,
+            updated_at=timestamp,
+            last_run=None
+        )
+        
+        with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
+            with patch('oceanum.cli.prax.workflows.PRAXClient') as mock_prax_client:
+                client_instance = Mock()
+                client_instance.get_pipeline.return_value = mock_pipeline
+                client_instance.get_pipeline_run.return_value = None
+                mock_prax_client.return_value = client_instance
+                
+                result = runner.invoke(main, [
+                    'prax', 'download', 'pipeline-artifact', 'test-pipeline',
+                    '--artifact-name', 'test-artifact',
+                    '--step-name', 'test-step'
+                ])
+                
+                assert result.exit_code == 1
+                assert "No pipeline run found for pipeline: test-pipeline" in result.output
