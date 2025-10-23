@@ -4,7 +4,7 @@ import click
 
 from oceanum.cli.renderer import Renderer, output_format_option, RenderField
 from oceanum.cli.auth import login_required
-from oceanum.cli.symbols import chk, err, spin, wrn
+from oceanum.cli.symbols import chk, err, spin, wrn, info
 from oceanum.cli.utils import format_dt
 
 from . import models
@@ -15,7 +15,9 @@ from .project import (
     project_user_option,
     project_stage_option,
     project_name_option,
-    name_argument
+    limit_option,
+    search_option,
+    name_argument,
 )
 from .utils import echoerr, format_run_status as frs
 
@@ -54,6 +56,8 @@ LIST_FIELDS = [
 @project_name_option
 @project_stage_option
 @output_format_option
+@limit_option
+@search_option
 @login_required
 def list_pipelines(ctx: click.Context, output: str, **filters):
     client = PRAXClient(ctx)
@@ -80,20 +84,22 @@ def list_pipelines(ctx: click.Context, output: str, **filters):
         echoerr(pipelines)
         sys.exit(1)
     else:
+        if pipelines.count > len(pipelines.items):
+            click.echo(f' {info} Showing {len(pipelines.items)} of {pipelines.count} pipelines. Use --limit or --search to adjust.')
         click.echo(Renderer(
-            data=pipelines,
+            data=pipelines.items,
             fields=LIST_FIELDS+extra_fields
         ).render(output_format=output))
 
 @list_group.command(name='tasks', help='List all PRAX Tasks')
 @click.pass_context
-@click.option('--search', help='Search by names or description',
-              default=None, type=str)
 @project_org_option
 @project_user_option
 @project_name_option
 @project_stage_option
 @output_format_option
+@limit_option
+@search_option
 @login_required
 def list_tasks(ctx: click.Context, output: str, **filters):
     client = PRAXClient(ctx)
@@ -105,7 +111,9 @@ def list_tasks(ctx: click.Context, output: str, **filters):
         echoerr(tasks)
         sys.exit(1)
     else:
-        click.echo(Renderer(data=tasks, fields=LIST_FIELDS).render(output_format=output))
+        if tasks.count > len(tasks.items):
+            click.echo(f' {info} Showing {len(tasks.items)} of {tasks.count} tasks. Use --limit or --search to adjust.')
+        click.echo(Renderer(data=tasks.items, fields=LIST_FIELDS).render(output_format=output))
 
 @describe.command(name='task', help='Describe PRAX Task')
 @click.pass_context
@@ -347,13 +355,13 @@ def delete_task(ctx: click.Context, name: str, **filters):
 
 @list_group.command(name='builds', help='List all PRAX Builds')
 @click.pass_context
-@click.option('--search', help='Search by names or description',
-                default=None, type=str)
 @project_org_option
 @project_user_option
 @project_name_option
 @project_stage_option
 @output_format_option
+@limit_option
+@search_option
 @login_required
 def list_builds(ctx: click.Context, output: str, **filters):
     build_fields = LIST_FIELDS + [
@@ -371,7 +379,9 @@ def list_builds(ctx: click.Context, output: str, **filters):
         echoerr(builds)
         sys.exit(1)
     else:
-        click.echo(Renderer(data=builds, fields=build_fields).render(output_format=output))
+        if builds.count > len(builds.items):
+            click.echo(f' {info} Showing {len(builds.items)} of {builds.count} builds. Use --limit or --search to adjust.')
+        click.echo(Renderer(data=builds.items, fields=build_fields).render(output_format=output))
 
 
 @describe.command(name='build', help='Describe PRAX Build')

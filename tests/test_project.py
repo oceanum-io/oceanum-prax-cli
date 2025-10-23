@@ -111,34 +111,38 @@ class TestListProject(TestCase):
             result = runner.invoke(oceanum_main, ['prax', 'list', 'projects'])
             assert result.exit_code == 1
             assert 'Could not list' in result.output
-            mock_list.assert_called_once_with()
+            mock_list.assert_called_once_with(limit=100)
 
     def test_list_project_not_found(self):
-        with patch('oceanum.cli.prax.client.PRAXClient.list_projects', return_value=[]) as mock_list:
+        with patch('oceanum.cli.prax.client.PRAXClient.list_projects') as mock_list:
+            mock_list.return_value = models.PagedProjectItemSchema(items=[], count=0)
             result = runner.invoke(oceanum_main, ['prax', 'list', 'projects'])
             assert result.exit_code == 1
             assert 'No projects found!' in result.output
-            mock_list.assert_called_once_with()
+            mock_list.assert_called_once_with(limit=100)
 
 
     def test_list_project(self):
-        projects = [
-            models.ProjectDetailsSchema(
-                id='test-project',
-                stages=[],
-                name='test-project',
-                org='test-org',
-                owner='test-user',
-                created_at=datetime.now().replace(tzinfo=timezone.utc),
-                description='test-description',
-                status='healthy',
-            ),
-        ]
+        projects = models.PagedProjectItemSchema(**{
+            "items": [
+                models.ProjectItemSchema(
+                    id='test-project',
+                    stages=[],
+                    name='test-project',
+                    org='test-org',
+                    owner='test-user',
+                    created_at=datetime.now().replace(tzinfo=timezone.utc),
+                    description='test-description',
+                    status='healthy',
+                ),
+            ],
+            "count": 1
+        })
 
         with patch('oceanum.cli.prax.client.PRAXClient.list_projects', return_value=projects) as mock_list:
             result = runner.invoke(oceanum_main, ['prax', 'list', 'projects'])
             assert result.exit_code == 0
-            mock_list.assert_called_once_with()
+            mock_list.assert_called_once_with(limit=100)
 
 
 class TestValidateProject(TestCase):
@@ -402,17 +406,21 @@ class TestListSources(TestCase):
         assert result.exit_code == 0
 
     def test_list_sources_success(self):
-        sources_response = [{
-            "name": "test-source",
-            "project": "test-project",
-            "stage": "dev",
-            "org": "test-org",
-            "created_at": timestamp,
-            "updated_at": timestamp,
-            "source_type": "git",
-            "repository": "https://github.com/test/repo",
-            "status": "active"
-        }]
+        sources_response = models.PagedSourceSchema(**{
+            "items": [{
+                "id": "source-id",
+                "name": "test-source",
+                "project": "test-project",
+                "stage": "dev",
+                "org": "test-org",
+                "created_at": timestamp,
+                "updated_at": timestamp,
+                "source_type": "git",
+                "repository": "https://github.com/test/repo",
+                "status": "active"
+            }],
+            "count": 1
+        })
 
         with patch('oceanum.cli.prax.client.PRAXClient.list_sources',
                   return_value=sources_response) as mock_list:
@@ -424,21 +432,26 @@ class TestListSources(TestCase):
                 project=None,
                 org=None,
                 user=None,
-                status=None
+                status=None,
+                limit=100
             )
 
     def test_list_sources_with_filters(self):
-        sources_response = [{
-            "name": "test-source",
-            "project": "test-project",
-            "stage": "dev",
-            "org": "test-org",
-            "created_at": timestamp,
-            "updated_at": timestamp,
-            "source_type": "git",
-            "repository": "https://github.com/test/repo",
-            "status": "active"
-        }]
+        sources_response = models.PagedSourceSchema(**{
+            "items": [{
+                "id": "source-id",
+                "name": "test-source",
+                "project": "test-project",
+                "stage": "dev",
+                "org": "test-org",
+                "created_at": timestamp,
+                "updated_at": timestamp,
+                "source_type": "git",
+                "repository": "https://github.com/test/repo",
+                "status": "active"
+            }],
+            "count": 1
+        })
 
         with patch('oceanum.cli.prax.client.PRAXClient.list_sources',
                   return_value=sources_response) as mock_list:
@@ -448,7 +461,8 @@ class TestListSources(TestCase):
                 '--org', 'test-org',
                 '--user', 'test@user.com',
                 '--status', 'active',
-                '--search', 'test'
+                '--search', 'test',
+                '--limit', '10'
             ])
             assert result.exit_code == 0
             assert 'test-source' in result.output
@@ -457,15 +471,15 @@ class TestListSources(TestCase):
                 project='test-project',
                 org='test-org',
                 user='test@user.com',
-                status='active'
+                status='active',
+                limit=10
             )
 
     def test_list_sources_empty(self):
-        with patch('oceanum.cli.prax.client.PRAXClient.list_sources',
-                  return_value=[]) as mock_list:
+        with patch('oceanum.cli.prax.client.PRAXClient.list_sources') as mock_list:
+            mock_list.return_value = models.PagedSourceSchema(items=[], count=0)
             result = runner.invoke(oceanum_main, ['prax', 'list', 'sources'])
-            assert result.exit_code == 1
-            assert 'No sources found!' in result.output
+            assert result.exit_code == 0
 
     def test_list_sources_error(self):
         error_response = models.ErrorResponse(

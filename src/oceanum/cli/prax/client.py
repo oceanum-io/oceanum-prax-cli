@@ -388,10 +388,10 @@ class PRAXClient:
                     type=e['type']) for e in e.errors()
                 ])
     
-    def list_projects(self, **filters) -> list[models.ProjectItemSchema] | models.ErrorResponse:
-        obj, errs = self._request('GET', 'projects', params=filters or None, schema=models.ProjectItemSchema)
+    def list_projects(self, **filters) -> models.PagedProjectItemSchema | models.ErrorResponse:
+        obj, errs = self._request('GET', 'projects', params=filters or None, schema=models.PagedProjectItemSchema)
         list_projects_err = models.ErrorResponse(detail="Failed to list projects!")
-        return obj if isinstance(obj, list) else errs or list_projects_err        
+        return obj if isinstance(obj, models.PagedProjectItemSchema) else errs or list_projects_err
     
     def get_project(self, project_name: str, **filters) -> models.ProjectDetailsSchema|models.ErrorResponse:
         """
@@ -440,15 +440,15 @@ class PRAXClient:
         return obj if isinstance(obj, models.SecretSpec) else errs or secret_err
 
 
-    def list_sources(self, **filters) -> list[models.SourceSchema] | models.ErrorResponse:
-        obj, errs = self._request('GET', 'sources', params=filters or None, schema=models.SourceSchema)
+    def list_sources(self, **filters) -> models.PagedSourceSchema | models.ErrorResponse:
+        obj, errs = self._request('GET', 'sources', params=filters or None, schema=models.PagedSourceSchema)
         list_sources_err = models.ErrorResponse(detail="Failed to list sources!")
-        return obj if isinstance(obj, list) else errs or list_sources_err
+        return obj if isinstance(obj, models.PagedSourceSchema) else errs or list_sources_err
     
-    def list_tasks(self, **filters) -> list[models.TaskSchema] | models.ErrorResponse:
-        obj, errs = self._request('GET', 'tasks', params=filters or None, schema=models.TaskSchema)
+    def list_tasks(self, **filters) -> models.PagedTaskSchema | models.ErrorResponse:
+        obj, errs = self._request('GET', 'tasks', params=filters or None, schema=models.PagedTaskSchema)
         list_tasks_err = models.ErrorResponse(detail="Failed to list tasks!")
-        return obj if isinstance(obj, list) else errs or list_tasks_err
+        return obj if isinstance(obj, models.PagedTaskSchema) else errs or list_tasks_err
         
     def get_task(self, task_id: str, **filters) -> models.TaskSchema | models.ErrorResponse:
         obj, errs = self._request('GET', f'tasks/{task_id}', params=filters or None, schema=models.TaskSchema)
@@ -483,10 +483,10 @@ class PRAXClient:
         _, errs = self._request('DELETE', f'task-runs/{run_name}', params=filters or None)
         return errs if errs else "Task run deleted successfully!"
     
-    def list_pipelines(self, **filters) -> list[models.PipelineSchema] | models.ErrorResponse:
-        obj, errs = self._request('GET', 'pipelines', params=filters or None, schema=models.PipelineSchema)
+    def list_pipelines(self, **filters) -> models.PagedPipelineSchema | models.ErrorResponse:
+        obj, errs = self._request('GET', 'pipelines', params=filters or None, schema=models.PagedPipelineSchema)
         list_pipelines_err = models.ErrorResponse(detail="Failed to list pipelines!")
-        return obj if isinstance(obj, list) else errs or list_pipelines_err
+        return obj if isinstance(obj, models.PagedPipelineSchema) else errs or list_pipelines_err
         
     def get_pipeline(self, pipeline_name: str, **filters) -> models.PipelineSchema | models.ErrorResponse:
         obj, errs = self._request('GET', f'pipelines/{pipeline_name}', params=filters or None, schema=models.PipelineSchema)
@@ -531,10 +531,10 @@ class PRAXClient:
         _, errs = self._request('DELETE', f'pipeline-runs/{run_name}', params=filters or None)
         return errs if errs else "Pipeline run deleted successfully!"
 
-    def list_builds(self, **filters) -> list[models.BuildSchema] | models.ErrorResponse:
-        obj, errs = self._request('GET', 'builds', params=filters or None, schema=models.BuildSchema)
+    def list_builds(self, **filters) -> models.PagedBuildSchema | models.ErrorResponse:
+        obj, errs = self._request('GET', 'builds', params=filters or None, schema=models.PagedBuildSchema)
         list_builds_err = models.ErrorResponse(detail="Failed to list builds!")
-        return obj if isinstance(obj, list) else errs or list_builds_err
+        return obj if isinstance(obj, models.PagedBuildSchema) else errs or list_builds_err
     
     def get_build(self, build_name: str, **filters) -> models.BuildSchema | models.ErrorResponse:
         obj, errs = self._request('GET', f'builds/{build_name}', params=filters or None, schema=models.BuildSchema)
@@ -572,11 +572,11 @@ class PRAXClient:
         _, errs = self._request('DELETE', f'build-runs/{run_name}', params=filters or None)
         return errs if errs else "Build run deleted successfully!"
     
-    def list_routes(self, **filters) -> list[models.RouteSchema] | models.ErrorResponse:
+    def list_routes(self, **filters) -> models.PagedRouteSchema | models.ErrorResponse:
         obj, errs = self._request('GET', 'routes', params=filters or None, 
                                   schema=models.RouteSchema)
         list_routes_err = models.ErrorResponse(detail="Failed to list routes!")
-        return obj if isinstance(obj, list) else errs or list_routes_err
+        return obj if isinstance(obj, models.PagedRouteSchema) else errs or list_routes_err
     
     def get_route(self, route_name: str) -> models.RouteSchema | models.ErrorResponse:
         obj, errs = self._request('GET', f'routes/{route_name}', 

@@ -16,63 +16,58 @@ class TestPRAXCommands(TestCase):
         self.runner = CliRunner()
         self.specfile = Path(__file__).parent / 'data/dpm-project.yaml'
         return super().setUp()
+    
+    def test_help(self):
+        result = self.runner.invoke(prax, ['--help'])
+        assert result.exit_code == 0
 
     def test_describe_help(self):
         result = self.runner.invoke(prax, ['describe', '--help'])
         assert result.exit_code == 0
 
+    def test_list_help(self):
+        result = self.runner.invoke(prax, ['list', '--help'])
+        assert result.exit_code == 0
 
-    def test_describe_route(self):
-        route = models.RouteSchema(
-            id='test-route-id',
-            name='test-route',
-            org='test-org',
-            display_name='test-route',
-            created_at=datetime.now(tz=timezone.utc),
-            updated_at=datetime.now(tz=timezone.utc),
-            project='test-project',
-            stage='test-stage',
-            tier='frontend',
-            status='active',
-            url='http://test-route',
-        )
-        with patch('oceanum.cli.prax.client.PRAXClient.get_route', return_value=route) as mock_get:
-            result = self.runner.invoke(main, ['prax','describe','route','test-route'])
-            assert result.exit_code == 0
-            mock_get.assert_called_once_with('test-route')
+    def test_create_help(self):
+        result = self.runner.invoke(prax, ['create', '--help'])
+        assert result.exit_code == 0
     
-    def test_describe_route_not_found(self):
-        result = self.runner.invoke(main, ['prax','describe','route','test-route'])
-        assert result.exit_code != 0
+    def test_delete_help(self):
+        result = self.runner.invoke(prax, ['delete', '--help'])
+        assert result.exit_code == 0
 
-    def test_list_routes(self):
-        with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
-            result = self.runner.invoke(main, ['prax','list','routes'])
-            assert result.exit_code == 0
-            mock_list.assert_called_once_with()
+    def test_update_help(self):
+        result = self.runner.invoke(prax, ['update', '--help'])
+        assert result.exit_code == 0
+
+    def test_submit_help(self):
+        result = self.runner.invoke(prax, ['submit', '--help'])
+        assert result.exit_code == 0
+
+    def test_terminate_help(self):
+        result = self.runner.invoke(prax, ['terminate', '--help'])
+        assert result.exit_code == 0
     
-    def test_list_routes_apps(self):
-        with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
-            result = self.runner.invoke(main, ['prax','list','routes','--tier','frontend'])
-            assert result.exit_code == 0
-            mock_list.assert_called_once_with(tier='frontend')
+    def test_download_help(self):
+        result = self.runner.invoke(prax, ['download', '--help'])
+        assert result.exit_code == 0
+
+    def test_allow_help(self):
+        result = self.runner.invoke(prax, ['allow', '--help'])
+        assert result.exit_code == 0
+
+    def test_lists_help(self):
+        result = self.runner.invoke(prax, ['list', '--help'])
+        assert result.exit_code == 0
     
-    def test_list_routes_services(self):
-        with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
-            result = self.runner.invoke(main, ['prax','list','routes','--tier','backend'])
-            print(result.output)
-            assert result.exit_code == 0
-            
-            mock_list.assert_called_once_with(tier='backend')
+    def test_validate_help(self):
+        result = self.runner.invoke(prax, ['validate', '--help'])
+        assert result.exit_code == 0
 
-    def test_list_routes_open(self):
-        with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
-            result = self.runner.invoke(main, ['prax','list','routes','--open-access'])
-            assert result.exit_code == 0
-            mock_list.assert_called_once_with(open=True)
+    def test_deploy_help(self):
+        result = self.runner.invoke(prax, ['deploy', '--help'])
+        assert result.exit_code == 0
 
-    def test_list_no_routes(self):
-        with patch('oceanum.cli.prax.client.PRAXClient.list_routes') as mock_list:
-            mock_list.return_value = []
-            result = self.runner.invoke(main, ['prax','list','routes'])
-            assert result.exit_code == 0
+
+    

@@ -254,6 +254,11 @@ class ValidationErrorDetail(BaseModel):
     type: str = Field(..., title='Type')
 
 
+class Input(BaseModel):
+    limit: int = Field(default=100, ge=1, title='Limit')
+    offset: int = Field(default=0, ge=0, title='Offset')
+
+
 class RouteFilterSchema(BaseModel):
     user: Optional[str] = Field(
         default=None, description='Filter by project owner email', title='User'
@@ -909,11 +914,11 @@ class TaskRef(RootModel[str]):
 class PipelineRef(RootModel[str]):
     root: str = Field(
         ...,
-        description='PipelineRef is the name of the pipeline to execute',
+        description='The Pipeline reference name from the list of Pipeline resources',
         max_length=32,
         min_length=3,
         pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
-        title='Resource Name',
+        title='Pipeline Reference',
     )
 
 
@@ -1035,12 +1040,69 @@ class Phase1(Enum):
     omitted = 'Omitted'
 
 
+class StepRef(RootModel[str]):
+    root: str = Field(
+        ...,
+        description='The Step reference from a previous step in the same Pipeline',
+        max_length=32,
+        min_length=3,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
+        title='Step Reference',
+    )
+
+
+class PipelineRefParams(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: str = Field(
+        ...,
+        description='Name is the name of the referenced pipeline',
+        max_length=32,
+        min_length=3,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
+        title='Resource Name',
+    )
+    step_ref: Optional[StepRef] = Field(
+        default=None,
+        alias='stepRef',
+        description='StepRef is the name of a PipelineStepTask or a PipelineDAGTask to run from the referenced pipeline. If not provided, will run all steps from the referenced pipeline, but no Arguments can be overridden in that case.',
+        title='Stepref',
+    )
+
+
 class Timeout1(RootModel[int]):
     root: int = Field(
         ...,
         description="Timeout allows to set the total execution timeout in seconds counting from the Pipeline's start time. If the Pipeline is not completed before the timeout, it will be terminated.",
         gt=0,
         title='Timeout',
+    )
+
+
+class PipelineTaskStepRef(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: str = Field(
+        ...,
+        description='Name is the name of a previous step',
+        max_length=32,
+        min_length=3,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
+        title='Resource Name',
+    )
+    parameter_ref: Optional[str] = Field(
+        default=None,
+        alias='parameterRef',
+        description='Parameter is the name of the output parameter from a previous step',
+        title='Parameterref',
+    )
+    artifact_ref: Optional[str] = Field(
+        default=None,
+        alias='artifactRef',
+        description='ArtifactName is the name of the output artifact from a previous step template',
+        title='Artifactref',
     )
 
 
@@ -1416,15 +1478,8 @@ class Task(RootModel[str]):
     )
 
 
-class Pipeline(RootModel[str]):
-    root: str = Field(
-        ...,
-        description='The Pipeline reference name from the list of Pipeline resources',
-        max_length=32,
-        min_length=3,
-        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
-        title='Pipeline Reference',
-    )
+class Pipeline(PipelineRef):
+    pass
 
 
 class Service(RootModel[str]):
@@ -1540,32 +1595,6 @@ class StageTrackSpec(BaseModel):
         default=None,
         description='Source repository tag Regular Expression to monitor for changes, triggering an update for this deployment stage and fixing each respective build image tag to the tag value.',
         title='Image or Source Repository Tag',
-    )
-
-
-class StepRef(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    name: str = Field(
-        ...,
-        description='Name is the name of a previous step',
-        max_length=32,
-        min_length=3,
-        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
-        title='Resource Name',
-    )
-    parameter_ref: Optional[str] = Field(
-        default=None,
-        alias='parameterRef',
-        description='Parameter is the name of the output parameter from a previous step',
-        title='Parameterref',
-    )
-    artifact_ref: Optional[str] = Field(
-        default=None,
-        alias='artifactRef',
-        description='ArtifactName is the name of the output artifact from a previous step template',
-        title='Artifactref',
     )
 
 
@@ -1826,6 +1855,11 @@ class SearchStagedResourceFilterSchema(BaseModel):
     )
 
 
+class PagedTaskSchema(BaseModel):
+    items: list[TaskSchema] = Field(..., title='Items')
+    count: int = Field(..., title='Count')
+
+
 class StagedResourceFilterSchema(BaseModel):
     user: Optional[str] = Field(
         default=None, description='Filter by project owner email', title='User'
@@ -1915,6 +1949,11 @@ class RunFilterSchema(BaseModel):
     )
 
 
+class PagedStagedRunSchema(BaseModel):
+    items: list[StagedRunSchema] = Field(..., title='Items')
+    count: int = Field(..., title='Count')
+
+
 class PipelineRunsSchema(BaseModel):
     id: str = Field(
         ..., description='The unique identifier of the staged resource', title='ID'
@@ -1976,6 +2015,11 @@ class BuildRunsSchema(BaseModel):
     runs: list[StagedRunSchema] = Field(..., title='Runs')
 
 
+class PagedSourceSchema(BaseModel):
+    items: list[SourceSchema] = Field(..., title='Items')
+    count: int = Field(..., title='Count')
+
+
 class OrgSchema(BaseModel):
     tier: QuotaTier
     usage: QuotaTier
@@ -2009,6 +2053,11 @@ class ErrorResponse(BaseModel):
     detail: Optional[Union[list[ValidationErrorDetail], dict[str, Any], str]] = Field(
         default=None, title='Detail'
     )
+
+
+class PagedRouteSchema(BaseModel):
+    items: list[RouteSchema] = Field(..., title='Items')
+    count: int = Field(..., title='Count')
 
 
 class ConfigMapRefMounted(BaseModel):
@@ -2236,7 +2285,7 @@ class PipelineTaskArtifact(BaseModel):
         pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
         title='Resource Name',
     )
-    step_ref: Optional[StepRef] = Field(
+    step_ref: Optional[PipelineTaskStepRef] = Field(
         default=None,
         alias='stepRef',
         description='Step is the name of a previous step that produces the artifact',
@@ -2277,7 +2326,7 @@ class PipelineTaskParameter(BaseModel):
         description='ConfigMapRef is the name of the configmap that contains the parameter value',
         title='Value from ConfigMap Reference',
     )
-    step_ref: Optional[StepRef] = Field(
+    step_ref: Optional[PipelineTaskStepRef] = Field(
         default=None,
         alias='stepRef',
         description='stepRef is the name of a previous step that produces the parameter',
@@ -2604,6 +2653,16 @@ class ProjectItemSchema(BaseModel):
     status: str = Field(default='created', max_length=20, title='Status')
 
 
+class PagedPipelineSchema(BaseModel):
+    items: list[PipelineSchema] = Field(..., title='Items')
+    count: int = Field(..., title='Count')
+
+
+class PagedBuildSchema(BaseModel):
+    items: list[BuildSchema] = Field(..., title='Items')
+    count: int = Field(..., title='Count')
+
+
 class ContainerImageSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -2706,6 +2765,11 @@ class StageDetailsSchema(BaseModel):
         description='The current revision number of the stage',
         title='Current Revision',
     )
+
+
+class PagedProjectItemSchema(BaseModel):
+    items: list[ProjectItemSchema] = Field(..., title='Items')
+    count: int = Field(..., title='Count')
 
 
 class BuildSpec(BaseModel):
@@ -2985,7 +3049,7 @@ class PhaseHook(BaseModel):
         description='TaskRef is the name of the task to execute',
         title='Taskref',
     )
-    pipeline_ref: Optional[PipelineRef] = Field(
+    pipeline_ref: Optional[Union[PipelineRef, PipelineRefParams]] = Field(
         default=None,
         alias='pipelineRef',
         description='PipelineRef is the name of the pipeline to execute',
@@ -3024,7 +3088,7 @@ class PipelineDAGTask(BaseModel):
         description='TaskRef is the name of the task to execute',
         title='Taskref',
     )
-    pipeline_ref: Optional[PipelineRef] = Field(
+    pipeline_ref: Optional[Union[PipelineRef, PipelineRefParams]] = Field(
         default=None,
         alias='pipelineRef',
         description='PipelineRef is the name of the pipeline to execute',
@@ -3144,24 +3208,6 @@ class PipelineOverlay(BaseModel):
     )
 
 
-class PipelineRefParams(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    name: str = Field(
-        ...,
-        description='The Resource reference name from the list of Project resources',
-        max_length=32,
-        min_length=3,
-        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
-        title='Resource Name',
-    )
-    overlay: Optional[PipelineOverlay] = Field(
-        default=None,
-        description='Overlay is the pipeline overlay to apply to the referenced pipeline',
-    )
-
-
 class PipelineStepTask(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -3184,7 +3230,7 @@ class PipelineStepTask(BaseModel):
         description='TaskRef is the name of the task to execute',
         title='Taskref',
     )
-    pipeline_ref: Optional[PipelineRef] = Field(
+    pipeline_ref: Optional[Union[PipelineRef, PipelineRefParams]] = Field(
         default=None,
         alias='pipelineRef',
         description='PipelineRef is the name of the pipeline to execute',
@@ -3258,25 +3304,6 @@ class ServiceOverlay(BaseModel):
         default=None,
         description="The Service's Autoscale parameters",
         title='Service Autoscale',
-    )
-
-
-class ServiceRefParams(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    name: str = Field(
-        ...,
-        description='The Resource reference name from the list of Project resources',
-        max_length=32,
-        min_length=3,
-        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
-        title='Resource Name',
-    )
-    overlay: Optional[ServiceOverlay] = Field(
-        default=None,
-        description='The Service overlay to apply to the referenced Service',
-        title='Service Overlay',
     )
 
 
@@ -3364,7 +3391,44 @@ class ServiceSpec(BaseModel):
     )
 
 
-class TaskRefParams(BaseModel):
+class StagedPipelineRefParams(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: str = Field(
+        ...,
+        description='The Resource reference name from the list of Project resources',
+        max_length=32,
+        min_length=3,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
+        title='Resource Name',
+    )
+    overlay: Optional[PipelineOverlay] = Field(
+        default=None,
+        description='Overlay is the pipeline overlay to apply to the referenced pipeline',
+    )
+
+
+class StagedServiceRefParams(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: str = Field(
+        ...,
+        description='The Resource reference name from the list of Project resources',
+        max_length=32,
+        min_length=3,
+        pattern='^[a-z]([a-z0-9-]+[a-z0-9])?$',
+        title='Resource Name',
+    )
+    overlay: Optional[ServiceOverlay] = Field(
+        default=None,
+        description='The Service overlay to apply to the referenced Service',
+        title='Service Overlay',
+    )
+
+
+class StagedTaskRefParams(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
@@ -3526,22 +3590,22 @@ class PipelineSpec(BaseModel):
 
 
 class StageResourcesSpec(BaseModel):
-    tasks: Optional[Union[list[Task], list[TaskRefParams]]] = Field(
+    tasks: Optional[Union[list[Task], list[StagedTaskRefParams]]] = Field(
         default=None,
         description='List of standalone Tasks to be executed in this deployment stage',
         title='Stage Tasks',
     )
-    pipelines: Optional[Union[list[Pipeline], list[PipelineRefParams]]] = Field(
+    pipelines: Optional[Union[list[Pipeline], list[StagedPipelineRefParams]]] = Field(
         default=None,
         description='Pipelines to be deployed in this deployment stage',
         title='Stage Pipelines',
     )
-    services: Optional[Union[list[Service], list[ServiceRefParams]]] = Field(
+    services: Optional[Union[list[Service], list[StagedServiceRefParams]]] = Field(
         default=None,
         description='List of Services to be deployed in this deployment stage',
         title='Stage Services',
     )
-    notebooks: Optional[Union[list[Notebook], list[ServiceRefParams]]] = Field(
+    notebooks: Optional[Union[list[Notebook], list[StagedServiceRefParams]]] = Field(
         default=None,
         description='List of Notebooks to be deployed in this deployment stage',
         title='Stage Notebooks',
@@ -3686,6 +3750,11 @@ class RevisionDetailsSchema(BaseModel):
     number: int = Field(default=0, title='Number')
     status: str = Field(default='created', max_length=20, title='Status')
     spec: ProjectSpec = Field(..., description='The project spec', title='Spec')
+
+
+class PagedRevisionDetailsSchema(BaseModel):
+    items: list[RevisionDetailsSchema] = Field(..., title='Items')
+    count: int = Field(..., title='Count')
 
 
 class ProjectDetailsSchema(BaseModel):

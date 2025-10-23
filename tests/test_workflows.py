@@ -57,19 +57,22 @@ token = TokenResponse(
 
 class TestPipelineCommands:
     def test_list_pipelines_success(self, runner, mock_client, mock_response):
-        # Setup mock response
-        mock_response = [
-            models.PipelineSchema(**{
-                "id": "pipeline-123",
-                "name": "test-pipeline",
-                "project": "test-project",
-                "stage": "dev",
-                "org": "test-org",
-                "created_at": timestamp,
-                "updated_at": timestamp,
-                "last_run": None
-            })
-        ]
+        # Setup mock response with paginated structure
+        mock_response = models.PagedPipelineSchema(**{
+            "items": [
+                models.PipelineSchema(**{
+                    "id": "pipeline-123",
+                    "name": "test-pipeline",
+                    "project": "test-project",
+                    "stage": "dev",
+                    "org": "test-org",
+                    "created_at": timestamp,
+                    "updated_at": timestamp,
+                    "last_run": None
+                })
+            ],
+            "count": 1
+        })
         mock_client.return_value = (mock_response, None)
 
         with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
@@ -82,8 +85,9 @@ class TestPipelineCommands:
             result = runner.invoke(main, ['prax', 'list', 'pipelines', '--project=bla'])
             assert result.exit_code == 0
             mock_client.assert_called_with("GET", "pipelines", 
-                params={"project": "bla", "stage": None, "org": None, 'search': None, 'user': None},
-                schema=models.PipelineSchema
+                params={"project": "bla", "stage": None, "org": None, 
+                        'search': None, 'user': None, 'limit': 100},
+                schema=models.PagedPipelineSchema
             )
 
     def test_list_pipelines_error(self, runner, mock_client, error_response):
@@ -286,18 +290,21 @@ class TestPipelineCommands:
 
 class TestTaskCommands:
     def test_list_tasks_success(self, runner, mock_client, mock_response):
-        mock_response = [
-            models.TaskSchema(**{
-                "id": "task-123",
-                "name": "test-task",
-                "project": "test-project",
-                "stage": "dev",
-                "org": "test-org",
-                "created_at": timestamp,
-                "updated_at": timestamp,
-                "last_run": None
-            })
-        ]
+        mock_response = models.PagedTaskSchema(**{
+            "items": [
+                models.TaskSchema(**{
+                    "id": "task-123",
+                    "name": "test-task",
+                    "project": "test-project",
+                    "stage": "dev",
+                    "org": "test-org",
+                    "created_at": timestamp,
+                    "updated_at": timestamp,
+                    "last_run": None
+                })
+            ],
+            "count": 1
+        })
         mock_client.return_value = (mock_response, None)
 
         with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
@@ -308,8 +315,10 @@ class TestTaskCommands:
             result = runner.invoke(main, ['prax', 'list', 'tasks', '--project=bla'])
             assert result.exit_code == 0
             mock_client.assert_called_with("GET", "tasks", 
-                params={"project": "bla", "stage": None, "org": None, 'search': None, 'user': None},
-                schema=models.TaskSchema
+                params={"project": "bla", 
+                        "stage": None, "org": None, 'search': None, 
+                        'user': None, 'limit': 100},
+                schema=models.PagedTaskSchema
             )
 
     def test_describe_task_success(self, runner, mock_client, mock_response):
@@ -403,8 +412,7 @@ class TestTaskCommands:
             org="test-org",
             created_at=timestamp,
             updated_at=timestamp,
-            status="succeeded",
-            runs=[]
+            status="succeeded"
         )):
             with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
                 result = runner.invoke(main, ['prax', 'delete', 'task', 'test-task'])
@@ -416,19 +424,22 @@ class TestTaskCommands:
 
 class TestBuildCommands:
     def test_list_builds_success(self, runner, mock_client, mock_response):
-        mock_response = [
-            models.BuildSchema(**{
-                "id": "build-123",
-                "name": "test-build",
-                "project": "test-project",
-                "stage": "dev",
-                "org": "test-org",
-                "created_at": timestamp,
-                "updated_at": timestamp,
-                "source_ref": "main",
-                "last_run": None
-            })
-        ]
+        mock_response = models.PagedBuildSchema(**{
+            "items": [
+                models.BuildSchema(**{
+                    "id": "build-123",
+                    "name": "test-build",
+                    "project": "test-project",
+                    "stage": "dev",
+                    "org": "test-org",
+                    "created_at": timestamp,
+                    "updated_at": timestamp,
+                    "source_ref": "main",
+                    "last_run": None
+                })
+            ],
+            "count": 1
+        })
         mock_client.return_value = (mock_response, None)
 
         with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
@@ -525,8 +536,7 @@ class TestBuildCommands:
             org="test-org",
             created_at=timestamp,
             updated_at=timestamp,
-            status="succeeded",
-            runs=[]
+            status="succeeded"
         )):
             with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
                 result = runner.invoke(main, ['prax', 'delete', 'build', 'test-build'])

@@ -10,6 +10,7 @@ from oceanum.cli.symbols import wrn, chk, info, err
 from . import models
 from .main import list_group, describe, update, allow, logs
 from .client import PRAXClient
+from .project import limit_option, search_option
 
 from .utils import format_route_status as _frs, echoerr
 
@@ -19,8 +20,6 @@ def update_route():
 
 @list_group.command(name='routes', help='List PRAX Routes')
 @click.pass_context
-@click.option('--search', help='Search by route name, project_name or project description',
-              default=None, type=str)
 @click.option('--org', help='Organization name', default=None, type=str)
 @click.option('--user', help='Route owner email', default=None, type=str)
 @click.option('--status', help='Route status', default=None, type=str)
@@ -30,6 +29,8 @@ def update_route():
 @click.option('--tier', help="Select only 'frontend' or 'backend' routes", default=None, type=click.Choice(['backend','frontend']))
 @click.option('--current-org', help='Filter routes by the current organization in Oceanum.io', default=False, type=bool, is_flag=True)
 @output_format_option
+@limit_option
+@search_option
 @login_required
 def list_routes(ctx: click.Context, output: str, open_access: bool, current_org: bool, **filters):
     if open_access:
@@ -60,12 +61,12 @@ def list_routes(ctx: click.Context, output: str, open_access: bool, current_org:
         echoerr(routes)
         sys.exit(1)
     else:
-        click.echo(Renderer(data=routes, fields=fields).render(output_format=output))
+        if routes.count > len(routes.items):
+            click.echo(f" {info} Showing {len(routes.items)} of {routes.count} routes. Use --limit or --search to adjust.")
+        click.echo(Renderer(data=routes.items, fields=fields).render(output_format=output))
 
 @list_group.command(name='notebooks', help='List PRAX Notebooks')
 @click.pass_context
-@click.option('--search', help='Search by notebook name, project_name or project description',
-              default=None, type=str)
 @click.option('--org', help='Organization name', default=None, type=str)
 @click.option('--user', help='Notebook owner email', default=None, type=str)
 @click.option('--status', help='Notebook status', default=None, type=str)
@@ -73,6 +74,8 @@ def list_routes(ctx: click.Context, output: str, open_access: bool, current_org:
 @click.option('--stage', help='Stage name', default=None, type=str)
 @click.option('--open-access', help='Show only open-access notebooks or private notebooks with False', default=None, type=bool, is_flag=True)
 @output_format_option
+@limit_option
+@search_option
 @login_required
 def list_notebooks(ctx: click.Context, output: str, open_access: bool, **filters):
     filters.update({'notebook': True})

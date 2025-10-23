@@ -24,23 +24,20 @@ project_name_option = click.option('--project', help='Set Project Name', require
 project_org_option = click.option('--org', help='Set Project Organization', required=False, type=str)
 project_user_option = click.option('--user', help='Set Project Owner email', required=False, type=str)
 project_stage_option = click.option('--stage', help='Set Project Stage', required=False, type=str)
+limit_option = click.option('--limit', help='Limit number of results', default=100, type=int)
+search_option = click.option('--search', help='Search resources by name', default=None, type=str)
 
 @list_group.command(name='projects', help='List PRAX Projects')
 @click.pass_context
-@click.option('--search', help='Search by project name or description', default=None, type=str)
+@search_option
 @click.option('--status', help='filter by Project status', default=None, type=str)
+@limit_option
 @project_org_option
 @project_user_option
 @login_required
-def list_projects(ctx: click.Context, search: str|None, org: str|None, user: str|None, status: str|None):
+def list_projects(ctx: click.Context, **filters):
     click.echo(f' {spin} Listing projects...')
     client = PRAXClient(ctx)
-    filters = {
-        'search': search,
-        'org': org,
-        'user': user,
-        'status': status
-    }
     projects = client.list_projects(**{
         k: v for k, v in filters.items() if v is not None
     })
@@ -53,15 +50,18 @@ def list_projects(ctx: click.Context, search: str|None, org: str|None, user: str
         RenderField(label='Stages', path='$.stages.*', mod=ssc),
     ]
 
-    if not projects:
-        click.echo(f' {wrn} No projects found!')
-        sys.exit(1)
-    elif isinstance(projects, models.ErrorResponse):
+    if isinstance(projects, models.ErrorResponse):
         click.echo(f" {err} Could not list projects!")
         echoerr(projects)
         sys.exit(1)
+    elif not projects.items:
+        click.echo(f' {wrn} No projects found!')
+        sys.exit(1)
     else:
-        click.echo(Renderer(data=projects, fields=fields).render(output_format='table'))
+        if projects.count > len(projects.items):
+            click.echo(f' {info} Showing {len(projects.items)} of {projects.count} projects. Use --limit or --search to adjust.')
+        click.echo(Renderer(data=projects.items, fields=fields).render(output_format='table'))
+        
 
 @prax.command(name='validate', help='Validate PRAX Project Specfile')
 @click.argument('specfile', type=click.Path(exists=True))
@@ -404,19 +404,12 @@ def allow_project(ctx: click.Context, project_name: str, org: str, group: list[s
 @project_name_option
 @project_org_option
 @project_user_option
-@click.option('--search', help='Search by project name or description', default=None, type=str)
+@limit_option
+@search_option
 @click.option('--status', help='filter by Project status', default=None, type=str)
-def list_sources(ctx: click.Context, project: str|None, org: str|None,
-                 user: str|None, search: str|None, status: str|None):
+def list_sources(ctx: click.Context, **filters):
     click.echo(f' {spin} Listing sources...')
     client = PRAXClient(ctx)
-    filters = {
-        'search': search,
-        'project': project,
-        'org': org,
-        'user': user,
-        'status': status,
-    }
     sources = client.list_sources(**filters)
 
     fields = [
@@ -437,4 +430,6 @@ def list_sources(ctx: click.Context, project: str|None, org: str|None,
         echoerr(sources)
         sys.exit(1)
     else:
-        click.echo(Renderer(data=sources, fields=fields).render(output_format='table'))
+        if sources.count > len(sources.items):
+            click.echo(f' {info} Showing {len(sources.items)} of {sources.count} sources. Use --limit or --search to adjust.')
+        click.echo(Renderer(data=sources.items, fields=fields).render(output_format='table'))
