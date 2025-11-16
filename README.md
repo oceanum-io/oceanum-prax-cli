@@ -26,4 +26,4 @@ oceanum prax --help
 
 ## Documentation
 
-ReadTheDocs: [https://oceanum-python.readthedocs.io/](https://oceanum-python.readthedocs.io/en/prax-cli/cli.html#oceanum-prax-commands)
+ReadTheDocs: [https://oceanum-prax-cli.readthedocs.io/](https://oceanum-prax-cli.readthedocs.io/en/)
