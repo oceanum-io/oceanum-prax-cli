@@ -592,7 +592,7 @@ class PRAXClient:
         output_path: str|None = None,
         #force: bool = False,
     ) -> bool:
-        if resource_type == 'pipeline' and 'step_name' is None:
+        if resource_type == 'pipeline' and step_name is None:
             click.echo(f" {err} 'step_name' is required to download artifact from pipeline runs!")
             return False
         elif resource_type == 'pipeline' and step_name is not None:
