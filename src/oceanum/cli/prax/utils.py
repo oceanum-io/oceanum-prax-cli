@@ -1,9 +1,9 @@
 
 import click
 
-from oceanum.cli.symbols import wrn
+from oceanum.cli.symbols import wrn, chk, info
 
-from .models import ErrorResponse, ProjectSpec, SecretData
+from .models import ErrorResponse, ProjectSpec, SecretData, ResourcePermissionsSchema, PermissionsSchema
 
 def format_run_status(status: str) -> str:
     status = status.lower()
@@ -109,3 +109,69 @@ def merge_secrets(project_spec: ProjectSpec, secrets: list[str]) -> ProjectSpec:
                     else:
                         existing_secret.data.update(secret['data'])
     return project_spec
+
+
+def format_permissions_display(permissions: ResourcePermissionsSchema, resource_name: str, resource_type: str = "resource") -> None:
+    """
+    Display resource permissions in a nice, readable format.
+    
+    Args:
+        permissions: The ResourcePermissionsSchema object to display
+        resource_name: Name of the resource (e.g., project name, route name)
+        resource_type: Type of resource (e.g., "project", "route")
+    """
+    def format_permission_value(value: bool | None) -> str:
+        if value is True:
+            return click.style("✓", fg='green', bold=True)
+        elif value is False:
+            return click.style("✗", fg='red', bold=True)
+        else:
+            return click.style("−", fg='yellow')
+    
+    def display_permissions_table(perms_list: list[PermissionsSchema], title: str):
+        if not perms_list:
+            click.echo(f"    No {title.lower()} permissions set")
+            return
+            
+        click.echo(f"    {click.style(title + ':', fg='blue', bold=True)}")
+        click.echo()
+        
+        # Table header
+        click.echo(click.style(f"    {'Subject':<30} {'View':<6} {'Change':<8} {'Delete':<8} {'Assign':<6}", bold=True))
+        click.echo(click.style("    " + "─" * 60, dim=True))
+        
+        # Table rows
+        for perm in perms_list:
+            subject = perm.subject[:28] + ".." if len(perm.subject) > 30 else perm.subject
+            
+            # Use fixed positions instead of string formatting for styled text
+            parts = [
+                f"    {subject:<30}",
+                f"  {format_permission_value(perm.view)}     ", # View column (6 chars)
+                f"  {format_permission_value(perm.change)}      ", # Change column (8 chars)  
+                f"  {format_permission_value(perm.delete)}      ", # Delete column (8 chars)
+                f"  {format_permission_value(perm.assign)}"      # Assign column (6 chars)
+            ]
+            
+            click.echo("".join(parts))
+        click.echo()
+    
+    click.echo(f" {chk} Permissions for {resource_type} '{resource_name}' updated successfully!")
+    click.echo()
+    click.echo(f" {info} Current permissions:")
+    click.echo()
+    
+    # Display users permissions
+    display_permissions_table(permissions.users, "Users")
+    
+    # Display groups permissions  
+    display_permissions_table(permissions.groups, "Groups")
+    
+    if not permissions.users and not permissions.groups:
+        click.echo("    No permissions currently set for this resource.")
+        click.echo()
+    
+    # Legend
+    click.echo("    " + click.style("Legend:", fg='cyan', bold=True))
+    click.echo(f"    {format_permission_value(True)} = Granted   {format_permission_value(False)} = Denied   {format_permission_value(None)} = Not set")
+    click.echo()

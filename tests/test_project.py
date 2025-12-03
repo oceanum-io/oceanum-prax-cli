@@ -391,7 +391,7 @@ class TestAllowProject(TestCase):
         )
         with patch.object(client.PRAXClient, 'get_project', return_value=project_schema) as mock_request:
             with patch.object(client.PRAXClient, '_request', return_value=(post_response, None)) as mock_request:
-                result = runner.invoke(oceanum_main, ['prax', 'allow', 'project', 'test-project','--user','some-user','--change'])
+                result = runner.invoke(oceanum_main, ['prax', 'allow', 'project', 'test-project','--user','some-user','--change=True'])
                 assert result.exit_code == 0
 
 timestamp = datetime.now(tz=timezone.utc).isoformat()

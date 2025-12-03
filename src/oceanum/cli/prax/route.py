@@ -11,7 +11,7 @@ from . import models
 from .main import list_group, describe, update, allow, logs
 from .client import PRAXClient
 
-from .utils import format_route_status as _frs, echoerr
+from .utils import format_route_status as _frs, echoerr, format_permissions_display
 
 @update.group(name='route', help='Update PRAX Routes')
 def update_route():
@@ -144,15 +144,15 @@ def update_thumbnail(ctx: click.Context, route_name: str, thumbnail_file: click.
 
 @allow.command(name='route')
 @click.argument('route_name', type=str, required=True)
-@click.option('-g','--group', type=str, required=False, multiple=True)
-@click.option('-u','--user', type=str, required=False, multiple=True)
-@click.option('-v','--view', help='Allow to view the route', default=None, type=bool, is_flag=True)
-@click.option('-c','--change', help='Allow to change the route, implies --view', default=None, type=bool, is_flag=True)
-@click.option('-a','--assign', help='Allow to assign route permissions', default=None, type=bool, is_flag=True)
+@click.option('-g','--group', required=False, multiple=True)
+@click.option('-u','--user', required=False, multiple=True)
+@click.option('-v','--view', help='Allow to view the route', default=None, type=bool)
+@click.option('-c','--change', help='Allow to change the route, implies --view=True', default=None, type=bool)
+@click.option('-a','--assign', help='Allow to assign route permissions', default=None, type=bool)
 @click.pass_context
 @login_required
-def allow_route(ctx: click.Context, route_name: str, group: list[str],
-                user: list[str], view: bool, change: bool, assign: bool):
+def allow_route(ctx: click.Context, route_name: str, group: tuple[str],
+                user: tuple[str], view: bool, change: bool, assign: bool):
 
     def _get_perm(subject: str):
         return models.PermissionsSchema(
@@ -164,7 +164,6 @@ def allow_route(ctx: click.Context, route_name: str, group: list[str],
 
     client = PRAXClient(ctx)
     response = client.get_route(route_name)
-
     if isinstance(response, models.RouteSchema):
         permissions = models.ResourcePermissionsSchema(
             groups=[_get_perm(g) for g in group],
@@ -172,8 +171,8 @@ def allow_route(ctx: click.Context, route_name: str, group: list[str],
         )
         response = client.allow_route(response.name, permissions)
         if not isinstance(response, models.ErrorResponse):
-            click.echo(f"{chk} Permissions for route '{route_name}' updated successfully!")
-            click.echo(f"{info} {response}")
+            format_permissions_display(response, route_name, "route")
+
     if isinstance(response, models.ErrorResponse):
         click.echo(f" {err} Failed to grant permission to route!")
         echoerr(response)

@@ -60,5 +60,5 @@ class TestAllowProject(TestCase):
         )
         with patch.object(client.PRAXClient, 'get_route', return_value=route_schema) as mock_request:
             with patch.object(client.PRAXClient, '_request', return_value=(post_response, None)) as mock_request:
-                result = runner.invoke(main, ['prax', 'allow', 'route', 'test-route','--user','some-user','--change'])
+                result = runner.invoke(main, ['prax', 'allow', 'route', 'test-route','--user','some-user','--change=True'])
                 assert result.exit_code == 0

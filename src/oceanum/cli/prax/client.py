@@ -732,7 +732,8 @@ class PRAXClient:
         obj, errs = self._request('POST',
             f'projects/{project_name}/permissions',
             params=filters or None, 
-            json=permissions.model_dump()
+            json=permissions.model_dump(),
+            schema=models.ResourcePermissionsSchema
         )
         allow_project_err = models.ErrorResponse(detail=f"Failed to allow project '{project_name}'!")
         return obj if isinstance(obj, models.ResourcePermissionsSchema) else errs or allow_project_err
@@ -745,7 +746,8 @@ class PRAXClient:
         obj, errs = self._request('POST',
             f'routes/{route_name}/permissions',
             params=filters or None, 
-            json=permissions.model_dump()
+            json=permissions.model_dump(),
+            schema=models.ResourcePermissionsSchema
         )
         allow_route_err = models.ErrorResponse(detail=f"Failed to allow route '{route_name}'!")
         return obj if isinstance(obj, models.ResourcePermissionsSchema) else errs or allow_route_err
