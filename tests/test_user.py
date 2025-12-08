@@ -4,7 +4,7 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from oceanum.cli import main
-from oceanum.cli.prax import models, client
+from oceanum.cli.prax import models, client, user
 
 runner = CliRunner()
 
@@ -20,10 +20,9 @@ class TestUser(TestCase):
             'username': 'test-user',
             'email': 'test-user@test.com',
             'token': 'test-token',
-            'current_org': 'test-org',
             'deployable_orgs': ['test-org'],
             'admin_orgs': ['test-org'],
-            'orgs': [{
+            'current_org': {
                 'name': 'test-org',
                 'projects': ['test-project'],
                 'tier': {
@@ -33,7 +32,7 @@ class TestUser(TestCase):
                     'name': 'usage',
                 },
                 'resources': [],
-            }],
+            },
             'projects': [],
         })]
         create_response = models.SecretSpec(
@@ -60,12 +59,70 @@ class TestUser(TestCase):
                 'username': 'test-user',
                 'email': 'test-user@test.com',
                 'token': 'test-token',
-                'current_org': 'test-org',
+                'all_orgs': ['test-org'],
                 'deployable_orgs': ['test-org'],
                 'admin_orgs': ['test-org'],
                 'projects': ['test-project'],
-                'resources': [
-                    {
+                'current_org': {
+                    'name': 'test-org',
+                    'projects': ['test-project'],
+                    "tier": {
+                        "max_cpu": 32000,
+                        "max_cpu_per_service": 4000,
+                        "max_cpu_per_task": 32000,
+                        "max_memory_per_service": 32000,
+                        "max_memory_per_task": 32000,
+                        "max_memory": 128000,
+                        "max_gpu": 0,
+                        "max_ephemeral_storage": 100000,
+                        "max_ephemeral_storage_per_service": 50000,
+                        "max_ephemeral_storage_per_task": 50000,
+                        "max_concurrent_workflows": 0,
+                        "max_persistent_storage": 100000,
+                        "max_persistent_volume_size": 10000,
+                        "max_persistent_volumes": 10,
+                        "max_projects": 50,
+                        "max_stages": 100,
+                        "max_builds": 100,
+                        "max_pipelines": 100,
+                        "max_tasks": 100,
+                        "max_secrets": 100,
+                        "max_images": 100,
+                        "max_sources": 100,
+                        "max_notebooks": 10,
+                        "max_services": 10,
+                        "max_configmaps": 100,
+                        "name": "basic"
+                        },
+                    "usage": {
+                        "max_cpu": 0,
+                        "max_cpu_per_service": 0,
+                        "max_cpu_per_task": 0,
+                        "max_memory_per_service": 0,
+                        "max_memory_per_task": 0,
+                        "max_memory": 0,
+                        "max_gpu": 0,
+                        "max_ephemeral_storage": 0,
+                        "max_ephemeral_storage_per_service": 0,
+                        "max_ephemeral_storage_per_task": 0,
+                        "max_concurrent_workflows": 0,
+                        "max_persistent_storage": 0,
+                        "max_persistent_volume_size": 0,
+                        "max_persistent_volumes": 0,
+                        "max_projects": 0,
+                        "max_stages": 0,
+                        "max_builds": 0,
+                        "max_pipelines": 0,
+                        "max_tasks": 0,
+                        "max_secrets": 0,
+                        "max_images": 0,
+                        "max_sources": 0,
+                        "max_notebooks": 0,
+                        "max_services": 0,
+                        "max_configmaps": 0,
+                        "name": "usage"
+                    },
+                    'resources': [{
                         'org': 'test-org',
                         'name': 'test-secret',
                         'created_at': '2021-09-09T12:00:00Z',
@@ -76,8 +133,8 @@ class TestUser(TestCase):
                             'description': 'test-secret',
                             'data': {'key': 'value'},
                         }
-                    }
-                ],
+                    }],
+                },
             }
             )
         ]
@@ -86,3 +143,5 @@ class TestUser(TestCase):
             result = runner.invoke(main, ['prax', 'describe', 'user'])
             assert result.exit_code == 0
             assert 'test-user' in result.output
+            assert 'test-project' in result.output
+            assert 'test-secret' in result.output

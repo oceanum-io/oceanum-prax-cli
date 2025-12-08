@@ -426,6 +426,11 @@ class PRAXClient:
         get_users_err = models.ErrorResponse(detail="Failed to get users!")
         return obj if isinstance(obj, list) else errs or get_users_err
     
+    def get_org(self, org: str) -> models.OrgDetailsSchema | models.ErrorResponse:
+        obj, errs = self._request('GET', f'orgs/{org}', schema=models.OrgDetailsSchema, params=None)
+        get_org_err = models.ErrorResponse(detail="Failed to get organization details!")
+        return obj if isinstance(obj, models.OrgDetailsSchema) else errs or get_org_err
+    
     def create_or_update_user_secret(self, secret_name: str, org: str, secret_data: dict, description: str|None = None) -> models.SecretSpec | models.ErrorResponse:
         obj, errs = self._request('POST',
             f'users/{org}/resources/secrets', 

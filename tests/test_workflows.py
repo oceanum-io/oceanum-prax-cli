@@ -139,6 +139,7 @@ class TestPipelineCommands:
                 "project": "test-project",
                 "stage": "dev",
                 "org": "test-org",
+                "parent": 'pipeline-123',
                 "created_at": timestamp,
                 "updated_at": timestamp,
                 "status": "running",
@@ -172,6 +173,7 @@ class TestPipelineCommands:
             "project": "test-project",
             "stage": "dev",
             "org": "test-org",
+            "parent": 'pipeline-123',
             "created_at": timestamp,
             "updated_at": timestamp,
             "status": "running",
@@ -190,6 +192,7 @@ class TestPipelineCommands:
             "object_ref": models.ObjectRef(root="pipeline-123"),
             "stage": "dev",
             "org": "test-org",
+            "parent": 'pipeline-123',
             "created_at": timestamp,
             "updated_at": timestamp,
             "status": "failed",
@@ -207,6 +210,7 @@ class TestPipelineCommands:
                 id="run-123",
                 name="test-pipeline",
                 project="test-project",
+                parent= 'pipeline-123',
                 stage="dev",
                 org="test-org",
                 created_at=timestamp,
@@ -236,10 +240,10 @@ class TestPipelineCommands:
                 "project": "test-project",
                 "stage": "dev",
                 "org": "test-org",
+                "parent": 'pipeline-123',
                 "created_at": timestamp,
                 "updated_at": timestamp,
                 "status": "running",
-                "runs": []
             }
         })
         #mock_response.content.return_value = ["Log line 1", "Log line 2"]
@@ -266,13 +270,13 @@ class TestPipelineCommands:
             "last_run": {
                 "id": "run-123",
                 "name": "run-123",
+                "parent": 'pipeline-123',
                 "project": "test-project",
                 "stage": "dev",
                 "org": "test-org",
                 "created_at": timestamp,
                 "updated_at": timestamp,
                 "status": "running",
-                "runs": []
             }
         })
         mock_response.iter_lines.return_value = iter(["Log line 1", "Log line 2"])
@@ -343,11 +347,11 @@ class TestTaskCommands:
                 "name": "run-123",
                 "project": "test-project",
                 "stage": "dev",
+                "parent": 'task-123',
                 "org": "test-org",
                 "created_at": timestamp,
                 "updated_at": timestamp,
                 "status": "running",
-                "runs": []
             }
         })
         mock_client.return_value = (mock_response, None)
@@ -376,11 +380,11 @@ class TestTaskCommands:
                 "name": "run-123",
                 "project": "test-project",
                 "stage": "dev",
+                "parent": 'task-123',
                 "org": "test-org",
                 "created_at": timestamp,
                 "updated_at": timestamp,
                 "status": "running",
-                "runs": []
             }
         })
         mock_response.iter_lines.return_value = iter(["Log line 1", "Log line 2"])
@@ -401,10 +405,10 @@ class TestTaskCommands:
             project="test-project",
             stage="dev",
             org="test-org",
+            parent= 'task-123',
             created_at=timestamp,
             updated_at=timestamp,
             status="succeeded",
-            runs=[]
         )):
             with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
                 result = runner.invoke(main, ['prax', 'delete', 'task', 'test-task'])
@@ -470,10 +474,10 @@ class TestBuildCommands:
                 "project": "test-project",
                 "stage": "dev",
                 "org": "test-org",
+                "parent": 'build-123',
                 "created_at": timestamp,
                 "updated_at": timestamp,
                 "status": "running",
-                "runs": []
             }
         })
         mock_client.return_value = (mock_response, None)
@@ -498,11 +502,11 @@ class TestBuildCommands:
                 "name": "run-123",
                 "project": "test-project",
                 "stage": "dev",
+                "parent": 'build-123',
                 "org": "test-org",
                 "created_at": timestamp,
                 "updated_at": timestamp,
                 "status": "running",
-                "runs": []
             }
         })
         mock_response.iter_lines.return_value = iter(["Log line 1", "Log line 2"])
@@ -525,8 +529,8 @@ class TestBuildCommands:
             org="test-org",
             created_at=timestamp,
             updated_at=timestamp,
+            parent= 'build-123',
             status="succeeded",
-            runs=[]
         )):
             with patch('oceanum.cli.models.TokenResponse.load', return_value=token):
                 result = runner.invoke(main, ['prax', 'delete', 'build', 'test-build'])
@@ -549,6 +553,7 @@ class TestDownloadCommands:
             project="test-project",
             stage="dev",
             name="test-task-run-123",
+            parent= 'task-123',
             status="Succeeded",
             created_at=timestamp,
             updated_at=timestamp,
@@ -586,6 +591,7 @@ class TestDownloadCommands:
             org="test-org",
             project="test-project",
             stage="dev",
+            parent= 'task-123',
             name="test-task-run-123",
             status="Succeeded",
             created_at=timestamp,
@@ -635,6 +641,7 @@ class TestDownloadCommands:
             project="test-project",
             stage="dev",
             name="test-task-run-123",
+            parent= 'task-123',
             status="Succeeded",
             created_at=timestamp,
             updated_at=timestamp,
@@ -662,6 +669,7 @@ class TestDownloadCommands:
             org="test-org",
             project="test-project",
             stage="dev",
+            parent= 'pipeline-123',
             name="test-pipeline-run-456",
             status="Succeeded",
             created_at=timestamp,
@@ -713,6 +721,7 @@ class TestDownloadCommands:
             id="test-pipeline-run-456",
             org="test-org",
             project="test-project",
+            parent= 'pipeline-123',
             stage="dev",
             name="test-pipeline-run-456",
             status="Succeeded",
