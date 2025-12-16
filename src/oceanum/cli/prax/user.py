@@ -123,6 +123,7 @@ def create_user_secret(ctx: click.Context,
 ):
     client = PRAXClient(ctx)
     users = client.get_users()
+    
     if isinstance(users, models.ErrorResponse):
         click.echo(f" {err} Error fetching User information:")
         echoerr(users)
@@ -150,8 +151,9 @@ def create_user_secret(ctx: click.Context,
     except ValueError:
         click.echo(f" {err} Failed to create or update User-Secret!")
         click.echo(f" {wrn} Error parsing secret data. Please provide key=value pairs.")
+    
         return 1
-
+    
     secret = client.create_or_update_user_secret(name, org, secret_data, description)
 
     if isinstance(secret, models.ErrorResponse):

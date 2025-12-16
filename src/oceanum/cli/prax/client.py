@@ -433,7 +433,7 @@ class PRAXClient:
     
     def create_or_update_user_secret(self, secret_name: str, org: str, secret_data: dict, description: str|None = None) -> models.SecretSpec | models.ErrorResponse:
         obj, errs = self._request('POST',
-            f'users/{org}/resources/secrets', 
+            f'orgs/{org}/resources/secrets', 
             json={
                 'name': secret_name, 
                 'description': description,
