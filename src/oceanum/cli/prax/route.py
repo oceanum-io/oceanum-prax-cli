@@ -1,60 +1,83 @@
 import sys
-import yaml
 from os import linesep
 
 import click
+import yaml
 
-from oceanum.cli.renderer import Renderer, output_format_option, RenderField
 from oceanum.cli.auth import login_required
-from oceanum.cli.symbols import wrn, chk, info, err
+from oceanum.cli.renderer import Renderer, RenderField, output_format_option
+from oceanum.cli.symbols import err, wrn
+
 from . import models
-from .main import list_group, describe, update, allow, logs
 from .client import PRAXClient
+from .main import allow, describe, list_group, logs, update
+from .utils import echoerr, format_permissions_display, format_route_status as _frs
 
-from .utils import format_route_status as _frs, echoerr, format_permissions_display
 
-@update.group(name='route', help='Update PRAX Routes')
+@update.group(name="route", help="Update PRAX Routes")
 def update_route():
     pass
 
-@list_group.command(name='routes', help='List PRAX Routes')
+
+@list_group.command(name="routes", help="List PRAX Routes")
 @click.pass_context
-@click.option('--search', help='Search by route name, project_name or project description',
-              default=None, type=str)
-@click.option('--org', help='Organization name', default=None, type=str)
-@click.option('--user', help='Route owner email', default=None, type=str)
-@click.option('--status', help='Route status', default=None, type=str)
-@click.option('--project', help='Project name', default=None, type=str)
-@click.option('--stage', help='Stage name', default=None, type=str)
-@click.option('--open-access', help='Show only open-access routes or private routes with False', default=None, type=bool, is_flag=True)
-@click.option('--tier', help="Select only 'frontend' or 'backend' routes", default=None, type=click.Choice(['backend','frontend']))
-@click.option('--current-org', help='Filter routes by the current organization in Oceanum.io', default=False, type=bool, is_flag=True)
+@click.option(
+    "--search",
+    help="Search by route name, project_name or project description",
+    default=None,
+    type=str,
+)
+@click.option("--org", help="Organization name", default=None, type=str)
+@click.option("--user", help="Route owner email", default=None, type=str)
+@click.option("--status", help="Route status", default=None, type=str)
+@click.option("--project", help="Project name", default=None, type=str)
+@click.option("--stage", help="Stage name", default=None, type=str)
+@click.option(
+    "--open-access",
+    help="Show only open-access routes or private routes with False",
+    default=None,
+    type=bool,
+    is_flag=True,
+)
+@click.option(
+    "--tier",
+    help="Select only 'frontend' or 'backend' routes",
+    default=None,
+    type=click.Choice(["backend", "frontend"]),
+)
+@click.option(
+    "--current-org",
+    help="Filter routes by the current organization in Oceanum.io",
+    default=False,
+    type=bool,
+    is_flag=True,
+)
 @output_format_option
 @login_required
-def list_routes(ctx: click.Context, output: str, open_access: bool, current_org: bool, **filters):
+def list_routes(
+    ctx: click.Context, output: str, open_access: bool, current_org: bool, **filters
+):
     if open_access:
-        filters.update({'open': True})
+        filters.update({"open": True})
     elif open_access is None:
         pass
     else:
-        filters.update({'open': False})
+        filters.update({"open": False})
 
     if current_org:
-        filters.update({'active_org': True})
+        filters.update({"active_org": True})
 
     client = PRAXClient(ctx)
     fields = [
-        RenderField(label='Route Name', path='$.name'),
-        RenderField(label='Project', path='$.project'),
-        RenderField(label='Stage', path='$.stage'),
-        RenderField(label='Status', path='$.status', mod=_frs),
-        RenderField(label='URL', path='$.url'),
+        RenderField(label="Route Name", path="$.name"),
+        RenderField(label="Project", path="$.project"),
+        RenderField(label="Stage", path="$.stage"),
+        RenderField(label="Status", path="$.status", mod=_frs),
+        RenderField(label="URL", path="$.url"),
     ]
-    routes =  client.list_routes(**{
-        k: v for k, v in filters.items() if v is not None
-    })
+    routes = client.list_routes(**{k: v for k, v in filters.items() if v is not None})
     if not routes:
-        click.echo(f' {wrn} No routes found!')
+        click.echo(f" {wrn} No routes found!")
     elif isinstance(routes, models.ErrorResponse):
         click.echo(f" {err} Error fetching routes:")
         echoerr(routes)
@@ -62,70 +85,87 @@ def list_routes(ctx: click.Context, output: str, open_access: bool, current_org:
     else:
         click.echo(Renderer(data=routes, fields=fields).render(output_format=output))
 
-@list_group.command(name='notebooks', help='List PRAX Notebooks')
+
+@list_group.command(name="notebooks", help="List PRAX Notebooks")
 @click.pass_context
-@click.option('--search', help='Search by notebook name, project_name or project description',
-              default=None, type=str)
-@click.option('--org', help='Organization name', default=None, type=str)
-@click.option('--user', help='Notebook owner email', default=None, type=str)
-@click.option('--status', help='Notebook status', default=None, type=str)
-@click.option('--project', help='Project name', default=None, type=str)
-@click.option('--stage', help='Stage name', default=None, type=str)
-@click.option('--open-access', help='Show only open-access notebooks or private notebooks with False', default=None, type=bool, is_flag=True)
+@click.option(
+    "--search",
+    help="Search by notebook name, project_name or project description",
+    default=None,
+    type=str,
+)
+@click.option("--org", help="Organization name", default=None, type=str)
+@click.option("--user", help="Notebook owner email", default=None, type=str)
+@click.option("--status", help="Notebook status", default=None, type=str)
+@click.option("--project", help="Project name", default=None, type=str)
+@click.option("--stage", help="Stage name", default=None, type=str)
+@click.option(
+    "--open-access",
+    help="Show only open-access notebooks or private notebooks with False",
+    default=None,
+    type=bool,
+    is_flag=True,
+)
 @output_format_option
 @login_required
 def list_notebooks(ctx: click.Context, output: str, open_access: bool, **filters):
-    filters.update({'notebook': True})
+    filters.update({"notebook": True})
     ctx.invoke(list_routes, output=output, open_access=open_access, **filters)
 
-@describe.command(name='route', help='Describe a PRAX Service or App Route')
+
+@describe.command(name="route", help="Describe a PRAX Service or App Route")
 @click.pass_context
-@click.argument('route_name', type=str)
+@click.argument("route_name", type=str)
 @login_required
 def describe_route(ctx: click.Context, route_name: str):
     client = PRAXClient(ctx)
     route = client.get_route(route_name)
     if isinstance(route, models.RouteSchema):
         fields = [
-            RenderField(label='Name', path='$.name'),
-            RenderField(label='Description', path='$.description'),
-            RenderField(label='Project', path='$.project'),
-            RenderField(label='Service', path='$.service_name'),
-            RenderField(label='Stage', path='$.stage'),
-            RenderField(label='Org', path='$.org'),
-            RenderField(label='Default URL', path='$.url'),
-            RenderField(label='Created At', path='$.created_at'),
-            RenderField(label='Updated At', path='$.updated_at'),
-            RenderField(label='Current Revision', path='$.revision'),
-            RenderField(label='Next Revision', path='$.next_revision'),
-            RenderField(label='Next Revision Status', path='$.next_revision_status'),
+            RenderField(label="Name", path="$.name"),
+            RenderField(label="Description", path="$.description"),
+            RenderField(label="Project", path="$.project"),
+            RenderField(label="Service", path="$.service_name"),
+            RenderField(label="Stage", path="$.stage"),
+            RenderField(label="Org", path="$.org"),
+            RenderField(label="Default URL", path="$.url"),
+            RenderField(label="Created At", path="$.created_at"),
+            RenderField(label="Updated At", path="$.updated_at"),
+            RenderField(label="Current Revision", path="$.revision"),
+            RenderField(label="Next Revision", path="$.next_revision"),
+            RenderField(label="Next Revision Status", path="$.next_revision_status"),
             RenderField(
-                label='Custom Domains',
-                path='$.custom_domains.*',
+                label="Custom Domains",
+                path="$.custom_domains.*",
                 sep=linesep,
-                mod=lambda x: f'https://{x}' if x else None
+                mod=lambda x: f"https://{x}" if x else None,
             ),
-            RenderField(label='Publish App', path='$.publish_app'),
-            RenderField(label='Open Access', path='$.open_access'),
-            RenderField(label='Thumbnail URL', path='$.thumbnail'),
-            RenderField(label='Status', path='$.status'),
-            RenderField(label='Details', path='$.details',
-                        mod=lambda x: yaml.dump(x, indent=4) if x else None
+            RenderField(label="Publish App", path="$.publish_app"),
+            RenderField(label="Open Access", path="$.open_access"),
+            RenderField(label="Thumbnail URL", path="$.thumbnail"),
+            RenderField(label="Status", path="$.status"),
+            RenderField(
+                label="Details",
+                path="$.details",
+                mod=lambda x: yaml.dump(x, indent=4) if x else None,
             ),
         ]
 
         click.echo(
-            Renderer(data=[route], fields=fields).render(output_format='table', tablefmt='plain')
+            Renderer(data=[route], fields=fields).render(
+                output_format="table", tablefmt="plain"
+            )
         )
     else:
         click.echo(f" {err} Error fetching route:")
         echoerr(route)
         sys.exit(1)
 
-@update_route.command(name='thumbnail', help='Update a PRAX Route thumbnail')
+
+@update_route.command(name="thumbnail", help="Update a PRAX Route thumbnail")
 @click.pass_context
-@click.argument('route_name', type=str)
-@click.argument('thumbnail_file', type=click.File('rb'))
+@click.argument("route_name", type=str)
+@click.argument("thumbnail_file", type=click.File("rb"))
 @login_required
 def update_thumbnail(ctx: click.Context, route_name: str, thumbnail_file: click.File):
     client = PRAXClient(ctx)
@@ -142,24 +182,38 @@ def update_thumbnail(ctx: click.Context, route_name: str, thumbnail_file: click.
         click.echo(f"Route '{route_name}' not found!")
 
 
-@allow.command(name='route')
-@click.argument('route_name', type=str, required=True)
-@click.option('-g','--group', required=False, multiple=True)
-@click.option('-u','--user', required=False, multiple=True)
-@click.option('-v','--view', help='Allow to view the route', default=None, type=bool)
-@click.option('-c','--change', help='Allow to change the route, implies --view=True', default=None, type=bool)
-@click.option('-a','--assign', help='Allow to assign route permissions', default=None, type=bool)
+@allow.command(name="route")
+@click.argument("route_name", type=str, required=True)
+@click.option("-g", "--group", required=False, multiple=True)
+@click.option("-u", "--user", required=False, multiple=True)
+@click.option("-v", "--view", help="Allow to view the route", default=None, type=bool)
+@click.option(
+    "-c",
+    "--change",
+    help="Allow to change the route, implies --view=True",
+    default=None,
+    type=bool,
+)
+@click.option(
+    "-a", "--assign", help="Allow to assign route permissions", default=None, type=bool
+)
 @click.pass_context
 @login_required
-def allow_route(ctx: click.Context, route_name: str, group: tuple[str],
-                user: tuple[str], view: bool, change: bool, assign: bool):
-
+def allow_route(
+    ctx: click.Context,
+    route_name: str,
+    group: tuple[str],
+    user: tuple[str],
+    view: bool,
+    change: bool,
+    assign: bool,
+):
     def _get_perm(subject: str):
         return models.PermissionsSchema(
             subject=subject,
             view=view if view is not None else None,
             change=change if change is not None else None,
-            assign=assign if assign is not None else None
+            assign=assign if assign is not None else None,
         )
 
     client = PRAXClient(ctx)
@@ -178,11 +232,14 @@ def allow_route(ctx: click.Context, route_name: str, group: tuple[str],
         echoerr(response)
         sys.exit(1)
 
-@logs.command(name='route', help='Get logs for a PRAX Route')
+
+@logs.command(name="route", help="Get logs for a PRAX Route")
 @click.pass_context
-@click.argument('route_name', type=str)
-@click.option('-n','--lines', help='Number of lines to show', default=1000, type=int)
-@click.option('-f','--follow', help='Follow logs', default=False, type=bool, is_flag=True)
+@click.argument("route_name", type=str)
+@click.option("-n", "--lines", help="Number of lines to show", default=1000, type=int)
+@click.option(
+    "-f", "--follow", help="Follow logs", default=False, type=bool, is_flag=True
+)
 @login_required
 def get_route_logs(ctx: click.Context, route_name: str, lines: int, follow: bool):
     client = PRAXClient(ctx)

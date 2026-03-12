@@ -41,7 +41,8 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov", "ruff"]
+test = ["pytest", "pytest-cov", "pytest-xdist"]
+dev = ["ruff", "pre-commit"]
 modelgen = ["datamodel-code-generator[http]"]
 
 [project.entry-points."oceanum.cli.extensions"]
@@ -82,3 +83,50 @@ exclude = ["tests*"]
 
 [tool.distutils.bdist_wheel]
 universal = true
+
+# Ruff configuration - Modern Python linter and formatter
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+# Exclude auto-generated files and build artifacts
+extend-exclude = [
+    "src/oceanum/cli/prax/models.py",  # Auto-generated from OpenAPI
+    "build",
+    "dist",
+    ".eggs",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+# Start with lenient rules - focus on clear errors and consistency
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes (unused imports, undefined names, etc.)
+    "I",    # isort (import sorting)
+    "W",    # pycodestyle warnings
+]
+
+# Ignore rules that conflict with formatter or are too strict initially
+ignore = [
+    "E501",  # Line too long (let formatter handle line length)
+    "E731",  # Lambda assignment (lenient - can be useful for inline functions)
+]
+
+# Per-file ignores
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "F841",  # Unused variable (common in test fixtures/mocks)
+]
+
+# Sort imports automatically
+[tool.ruff.lint.isort]
+known-first-party = ["oceanum"]
+combine-as-imports = true
+
+# Formatter configuration
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
