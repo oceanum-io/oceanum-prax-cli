@@ -224,7 +224,9 @@ def create_user_secret(
         parts = item.split("=", 1)
         if len(parts) != 2 or not parts[0]:
             click.echo(f" {err} Failed to create or update User-Secret!")
-            click.echo(f" {wrn} Error parsing secret data. Please provide key=value pairs.")
+            click.echo(
+                f" {wrn} Error parsing secret data. Please provide key=value pairs."
+            )
             return 1
         secret_data[parts[0]] = parts[1]
 
