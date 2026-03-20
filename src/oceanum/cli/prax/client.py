@@ -855,7 +855,7 @@ class PRAXClient:
             "PUT",
             f"build-runs/{run_name}/terminate",
             params=filters or None,
-            scheuma=models.StagedRunSchema,
+            schema=models.StagedRunSchema,
         )
         terminate_build_run_err = models.ErrorResponse(
             detail=f"Failed to terminate build run '{run_name}'!"
