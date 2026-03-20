@@ -219,13 +219,14 @@ def create_user_secret(
         )
         return 1
 
-    try:
-        secret_data = {s[0]: s[1] for s in [d.split("=") for d in data]}
-    except ValueError:
-        click.echo(f" {err} Failed to create or update User-Secret!")
-        click.echo(f" {wrn} Error parsing secret data. Please provide key=value pairs.")
-
-        return 1
+    secret_data = {}
+    for item in data:
+        parts = item.split("=", 1)
+        if len(parts) != 2 or not parts[0]:
+            click.echo(f" {err} Failed to create or update User-Secret!")
+            click.echo(f" {wrn} Error parsing secret data. Please provide key=value pairs.")
+            return 1
+        secret_data[parts[0]] = parts[1]
 
     secret = client.create_or_update_user_secret(name, org, secret_data, description)
 
