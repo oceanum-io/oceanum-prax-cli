@@ -177,13 +177,12 @@ class PRAXClient:
                     break
                 else:
                     click.echo(f" {spin} Waiting for project to start updating...")
-                    pass
                     time.sleep(self._lag)
                     counter += 1
-                return project
             else:
                 click.echo(f" {err} Failed to get project details!")
                 break
+        return project
 
     def _wait_builds_to_finish(self, **params):
         def get_builds(project) -> list[models.BuildSchema]:
@@ -855,7 +854,7 @@ class PRAXClient:
             "PUT",
             f"build-runs/{run_name}/terminate",
             params=filters or None,
-            scheuma=models.StagedRunSchema,
+            schema=models.StagedRunSchema,
         )
         terminate_build_run_err = models.ErrorResponse(
             detail=f"Failed to terminate build run '{run_name}'!"

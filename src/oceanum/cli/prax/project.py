@@ -219,7 +219,7 @@ def delete_project(
             echoerr(response)
             sys.exit(1)
         else:
-            click.echo(f" {chk} Project {project_name} deleted successfuly!")
+            click.echo(f" {chk} Project {project_name} deleted successfully!")
             click.echo(f" {info} Deployed resources will be removed shortly...")
     else:
         click.echo(f" {err} Failed to delete project '{project_name}'!")

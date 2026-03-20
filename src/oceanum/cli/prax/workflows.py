@@ -28,7 +28,7 @@ def parse_parameters(parameters: list[str] | None) -> dict | None:
             parts = p.split("=", 1)
             if len(parts) != 2:
                 raise click.BadParameter(
-                    f"Parameter '{p}' is not in the expected 'key=value' format.",
+                    f"Invalid parameter format '{p}'. Expected 'key=value'.",
                     param_hint="'--parameter'",
                 )
             key, value = parts
