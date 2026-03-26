@@ -1,14 +1,30 @@
 name: Python package
 
-on: 
+on:
   push:
     branches:
       - '*'
   workflow_call: {}
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Run ruff linter
+        run: ruff check --output-format=github src/
+      - name: Run ruff formatter check
+        run: ruff format --check src/
+
   unit-tests:
     runs-on: ubuntu-latest
+    needs: lint
     strategy:
       matrix:
         python-version: ["3.10","3.11", "3.12", "3.13"]
@@ -28,12 +44,6 @@ jobs:
         run: |
           pip install libs/oceanum-python
           pip install .[test]
-      - name: Lint code with Ruff
+      - name: Run unit-tests with parallel execution
         run: |
-          pip install ruff
-          ruff check --output-format=github --target-version=py310 --exclude=tests --exclude=oceanum-python
-        continue-on-error: true
-      - name: Run unit-tests
-        run: |
-          pytest --cov oceanum.cli.prax tests/ -s -v
-      
+          pytest --cov oceanum.cli.prax tests/ -n auto -v
