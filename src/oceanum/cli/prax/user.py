@@ -1,6 +1,7 @@
 import os
 
 import click
+import yaml
 
 from oceanum.cli.auth import login_required
 from oceanum.cli.renderer import Renderer, RenderField
@@ -8,7 +9,7 @@ from oceanum.cli.symbols import chk, err, wrn
 
 from . import models
 from .client import PRAXClient
-from .main import create, describe
+from .main import create, describe, usage
 from .utils import echoerr
 
 
@@ -167,6 +168,62 @@ def describe_user(ctx: click.Context, org: str | None):
                 )
             )
         return 0
+
+
+@usage.command(name="org", help="Inspect aggregated PRAX Organization usage")
+@click.pass_context
+@click.argument("org", type=str)
+@click.option(
+    "--project-name",
+    default=None,
+    type=str,
+    help="Limit usage aggregation to a project name",
+)
+@click.option(
+    "--start",
+    default=None,
+    type=str,
+    help="Start time for range query (ISO 8601)",
+)
+@click.option(
+    "--end",
+    default=None,
+    type=str,
+    help="End time for range query (ISO 8601)",
+)
+@click.option(
+    "--step",
+    default=None,
+    type=str,
+    help="Prometheus step, e.g. 5m or 1h",
+)
+@click.option(
+    "--output",
+    type=click.Choice(["yaml", "json"]),
+    default="yaml",
+    show_default=True,
+    help="Output format",
+)
+@login_required
+def get_org_usage(
+    ctx: click.Context,
+    org: str,
+    output: str,
+    **filters,
+):
+    client = PRAXClient(ctx)
+    usage_data = client.get_org_usage(
+        org, **{k: v for k, v in filters.items() if v is not None}
+    )
+    if isinstance(usage_data, models.ErrorResponse):
+        click.echo(f" {err} Error fetching organization usage:")
+        echoerr(usage_data)
+        return 1
+    if output == "json":
+        click.echo(Renderer(data=usage_data, fields=[]).render(output_format="json"))
+    else:
+        click.echo(yaml.safe_dump(usage_data, sort_keys=False))
+    return 0
 
 
 @create.command(name="user-secret", help="Create a new PRAX User Secret (API Token)")

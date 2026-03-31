@@ -549,6 +549,22 @@ class PRAXClient:
         get_org_err = models.ErrorResponse(detail="Failed to get organization details!")
         return obj if isinstance(obj, models.OrgDetailsSchema) else errs or get_org_err
 
+    def get_org_usage(
+        self, org: str, **filters
+    ) -> dict[str, Any] | models.ErrorResponse:
+        response, errs = self._request(
+            "GET", f"orgs/{org}/usage", params=filters or None, schema=None
+        )
+        get_org_usage_err = models.ErrorResponse(
+            detail=f"Failed to get organization usage for '{org}'!"
+        )
+        if isinstance(response, requests.Response) and response.ok:
+            try:
+                return response.json()
+            except requests.exceptions.JSONDecodeError:
+                return models.ErrorResponse(detail=response.text)
+        return errs or get_org_usage_err
+
     def create_or_update_user_secret(
         self,
         secret_name: str,
@@ -618,6 +634,20 @@ class PRAXClient:
         return (
             obj if isinstance(obj, models.StagedRunSchema) else errs or get_task_run_err
         )
+
+    def get_task_run_usage(
+        self, run_name: str, **filters
+    ) -> list[models.PodContainerMetrics] | models.ErrorResponse:
+        obj, errs = self._request(
+            "GET",
+            f"task-runs/{run_name}/usage",
+            params=filters or None,
+            schema=models.PodContainerMetrics,
+        )
+        get_task_run_usage_err = models.ErrorResponse(
+            detail=f"Failed to get task run usage '{run_name}'!"
+        )
+        return obj if isinstance(obj, list) else errs or get_task_run_usage_err
 
     def terminate_task_run(
         self, run_name: str, **filters
@@ -716,6 +746,20 @@ class PRAXClient:
             if isinstance(obj, models.StagedRunSchema)
             else errs or get_pipeline_run_err
         )
+
+    def get_pipeline_run_usage(
+        self, run_name: str, **filters
+    ) -> list[models.PodContainerMetrics] | models.ErrorResponse:
+        obj, errs = self._request(
+            "GET",
+            f"pipeline-runs/{run_name}/usage",
+            params=filters or None,
+            schema=models.PodContainerMetrics,
+        )
+        get_pipeline_run_usage_err = models.ErrorResponse(
+            detail=f"Failed to get pipeline run usage '{run_name}'!"
+        )
+        return obj if isinstance(obj, list) else errs or get_pipeline_run_usage_err
 
     def terminate_pipeline_run(
         self, run_name: str, **filters
@@ -847,6 +891,20 @@ class PRAXClient:
             else errs or get_build_run_err
         )
 
+    def get_build_run_usage(
+        self, run_name: str, **filters
+    ) -> list[models.PodContainerMetrics] | models.ErrorResponse:
+        obj, errs = self._request(
+            "GET",
+            f"build-runs/{run_name}/usage",
+            params=filters or None,
+            schema=models.PodContainerMetrics,
+        )
+        get_build_run_usage_err = models.ErrorResponse(
+            detail=f"Failed to get build run usage '{run_name}'!"
+        )
+        return obj if isinstance(obj, list) else errs or get_build_run_usage_err
+
     def terminate_build_run(
         self, run_name: str, **filters
     ) -> models.StagedRunSchema | models.ErrorResponse:
@@ -904,6 +962,20 @@ class PRAXClient:
             detail=f"Failed to get route '{route_name}'!"
         )
         return obj if isinstance(obj, models.RouteSchema) else errs or get_route_err
+
+    def get_route_usage(
+        self, route_name: str, **filters
+    ) -> list[models.PodContainerMetrics] | models.ErrorResponse:
+        obj, errs = self._request(
+            "GET",
+            f"routes/{route_name}/usage",
+            params=filters or None,
+            schema=models.PodContainerMetrics,
+        )
+        get_route_usage_err = models.ErrorResponse(
+            detail=f"Failed to get route usage '{route_name}'!"
+        )
+        return obj if isinstance(obj, list) else errs or get_route_usage_err
 
     def _download_artifact(
         self,

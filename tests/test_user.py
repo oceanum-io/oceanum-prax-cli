@@ -1,5 +1,5 @@
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
@@ -10,6 +10,51 @@ runner = CliRunner()
 
 
 class TestUser(TestCase):
+    def test_get_org_usage(self):
+        response = MagicMock(status_code=200)
+        response.ok = True
+        response.json.return_value = {
+            "time_series": {"cpu_limits": []},
+            "billing_totals": {"cpu": 123},
+            "metadata": {
+                "org": "test-org",
+                "project_name": None,
+                "step": "1h",
+            },
+        }
+        with patch.object(
+            client.PRAXClient, "_request", return_value=(response, None)
+        ) as mock_request:
+            result = runner.invoke(
+                main,
+                [
+                    "prax",
+                    "usage",
+                    "org",
+                    "test-org",
+                    "--project-name",
+                    "test-project",
+                    "--start",
+                    "2023-01-01T10:00:00Z",
+                    "--end",
+                    "2023-01-01T12:00:00Z",
+                    "--step",
+                    "5m",
+                ],
+            )
+            assert result.exit_code == 0
+            mock_request.assert_called_with(
+                "GET",
+                "orgs/test-org/usage",
+                params={
+                    "project_name": "test-project",
+                    "start": "2023-01-01T10:00:00Z",
+                    "end": "2023-01-01T12:00:00Z",
+                    "step": "5m",
+                },
+                schema=None,
+            )
+
     def test_create_user_secret_help(self):
         result = runner.invoke(main, ["prax", "create", "user-secret", "--help"])
         assert result.exit_code == 0

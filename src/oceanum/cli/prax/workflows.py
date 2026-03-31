@@ -1,5 +1,6 @@
 import sys
 import time
+import yaml
 
 import click
 
@@ -10,7 +11,17 @@ from oceanum.cli.utils import format_dt
 
 from . import models
 from .client import PRAXClient
-from .main import delete, describe, download, list_group, logs, retry, submit, terminate
+from .main import (
+    delete,
+    describe,
+    download,
+    list_group,
+    logs,
+    retry,
+    submit,
+    terminate,
+    usage,
+)
 from .project import (
     name_argument,
     project_name_option,
@@ -34,6 +45,139 @@ def parse_parameters(parameters: list[str] | None) -> dict | None:
             key, value = parts
             params[key] = value
     return params or None
+
+
+def render_usage(usage: list[models.PodContainerMetrics], output: str) -> str:
+    usage_data = [
+        item.model_dump(
+            exclude_none=True, exclude_unset=True, by_alias=True, mode="json"
+        )
+        for item in usage
+    ]
+    if output == "json":
+        return Renderer(data=usage_data, fields=[]).render(output_format="json")
+    return yaml.safe_dump(usage_data, sort_keys=False)
+
+
+def usage_options(func):
+    func = click.option(
+        "--output",
+        type=click.Choice(["yaml", "json"]),
+        default="yaml",
+        show_default=True,
+        help="Output format",
+    )(func)
+    func = click.option(
+        "--workflow-step",
+        default=None,
+        type=str,
+        help="Specific workflow step to inspect",
+    )(func)
+    func = click.option(
+        "--time",
+        default=None,
+        type=str,
+        help="Instant query timestamp (ISO 8601)",
+    )(func)
+    func = click.option(
+        "--end",
+        default=None,
+        type=str,
+        help="End time for range query (ISO 8601)",
+    )(func)
+    func = click.option(
+        "--start",
+        default=None,
+        type=str,
+        help="Start time for range query (ISO 8601)",
+    )(func)
+    func = click.option(
+        "--step",
+        default=None,
+        type=str,
+        help="Prometheus step, e.g. 5m or 1h",
+    )(func)
+    return func
+
+
+def route_usage_options(func):
+    func = click.option(
+        "--output",
+        type=click.Choice(["yaml", "json"]),
+        default="yaml",
+        show_default=True,
+        help="Output format",
+    )(func)
+    func = click.option(
+        "--end",
+        default=None,
+        type=str,
+        help="End time for range query (ISO 8601)",
+    )(func)
+    func = click.option(
+        "--start",
+        default=None,
+        type=str,
+        help="Start time for range query (ISO 8601)",
+    )(func)
+    func = click.option(
+        "--step",
+        default=None,
+        type=str,
+        help="Prometheus step, e.g. 5m or 1h",
+    )(func)
+    return func
+
+
+@usage.command(name="task", help="Inspect PRAX Task run usage")
+@click.pass_context
+@click.argument("run_name", type=str)
+@usage_options
+@login_required
+def get_task_usage(ctx: click.Context, run_name: str, output: str, **filters):
+    client = PRAXClient(ctx)
+    usage_data = client.get_task_run_usage(
+        run_name, **{k: v for k, v in filters.items() if v is not None}
+    )
+    if isinstance(usage_data, models.ErrorResponse):
+        click.echo(f" {err} Error fetching task usage:")
+        echoerr(usage_data)
+        sys.exit(1)
+    click.echo(render_usage(usage_data, output))
+
+
+@usage.command(name="build", help="Inspect PRAX Build run usage")
+@click.pass_context
+@click.argument("run_name", type=str)
+@usage_options
+@login_required
+def get_build_usage(ctx: click.Context, run_name: str, output: str, **filters):
+    client = PRAXClient(ctx)
+    usage_data = client.get_build_run_usage(
+        run_name, **{k: v for k, v in filters.items() if v is not None}
+    )
+    if isinstance(usage_data, models.ErrorResponse):
+        click.echo(f" {err} Error fetching build usage:")
+        echoerr(usage_data)
+        sys.exit(1)
+    click.echo(render_usage(usage_data, output))
+
+
+@usage.command(name="pipeline", help="Inspect PRAX Pipeline run usage")
+@click.pass_context
+@click.argument("run_name", type=str)
+@usage_options
+@login_required
+def get_pipeline_usage(ctx: click.Context, run_name: str, output: str, **filters):
+    client = PRAXClient(ctx)
+    usage_data = client.get_pipeline_run_usage(
+        run_name, **{k: v for k, v in filters.items() if v is not None}
+    )
+    if isinstance(usage_data, models.ErrorResponse):
+        click.echo(f" {err} Error fetching pipeline usage:")
+        echoerr(usage_data)
+        sys.exit(1)
+    click.echo(render_usage(usage_data, output))
 
 
 LIST_FIELDS = [

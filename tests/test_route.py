@@ -25,6 +25,36 @@ route_schema = models.RouteSchema(
 
 
 class TestAllowProject(TestCase):
+    def test_get_route_usage(self):
+        usage_response = [
+            models.PodContainerMetrics(
+                namespace_name="test-org",
+                pod_name="route-pod",
+                container_name="main",
+            )
+        ]
+        with patch.object(
+            client.PRAXClient, "_request", return_value=(usage_response, None)
+        ) as mock_request:
+            result = runner.invoke(
+                main,
+                [
+                    "prax",
+                    "usage",
+                    "route",
+                    "test-route",
+                    "--step",
+                    "5m",
+                ],
+            )
+            assert result.exit_code == 0
+            mock_request.assert_called_with(
+                "GET",
+                "routes/test-route/usage",
+                params={"step": "5m"},
+                schema=models.PodContainerMetrics,
+            )
+
     def test_list_notebooks(self):
         response = MagicMock(status_code=200)
         response.json.return_value = [

@@ -10,8 +10,9 @@ from oceanum.cli.symbols import err, wrn
 
 from . import models
 from .client import PRAXClient
-from .main import allow, describe, list_group, logs, update
+from .main import allow, describe, list_group, logs, update, usage
 from .utils import echoerr, format_permissions_display, format_route_status as _frs
+from .workflows import render_usage, route_usage_options
 
 
 @update.group(name="route", help="Update PRAX Routes")
@@ -249,3 +250,20 @@ def get_route_logs(ctx: click.Context, route_name: str, lines: int, follow: bool
             echoerr(line)
             sys.exit(1)
         click.echo(line)
+
+
+@usage.command(name="route", help="Inspect PRAX Route usage")
+@click.pass_context
+@click.argument("route_name", type=str)
+@route_usage_options
+@login_required
+def get_route_usage(ctx: click.Context, route_name: str, output: str, **filters):
+    client = PRAXClient(ctx)
+    usage_data = client.get_route_usage(
+        route_name, **{k: v for k, v in filters.items() if v is not None}
+    )
+    if isinstance(usage_data, models.ErrorResponse):
+        click.echo(f" {err} Error fetching route usage:")
+        echoerr(usage_data)
+        sys.exit(1)
+    click.echo(render_usage(usage_data, output))

@@ -53,6 +53,49 @@ token = TokenResponse(
 
 
 class TestPipelineCommands:
+    def test_get_pipeline_usage(self, runner, mock_client):
+        mock_client.return_value = (
+            [
+                models.PodContainerMetrics(
+                    namespace_name="test-org",
+                    pod_name="pipeline-pod",
+                    container_name="main",
+                )
+            ],
+            None,
+        )
+
+        with patch("oceanum.cli.models.TokenResponse.load", return_value=token):
+            result = runner.invoke(
+                main,
+                [
+                    "prax",
+                    "usage",
+                    "pipeline",
+                    "run-123",
+                    "--step",
+                    "5m",
+                    "--workflow-step",
+                    "step-1",
+                    "--start",
+                    "2023-01-01T10:00:00Z",
+                    "--end",
+                    "2023-01-01T12:00:00Z",
+                ],
+            )
+            assert result.exit_code == 0
+            mock_client.assert_called_with(
+                "GET",
+                "pipeline-runs/run-123/usage",
+                params={
+                    "step": "5m",
+                    "workflow_step": "step-1",
+                    "start": "2023-01-01T10:00:00Z",
+                    "end": "2023-01-01T12:00:00Z",
+                },
+                schema=models.PodContainerMetrics,
+            )
+
     def test_list_pipelines_success(self, runner, mock_client, mock_response):
         # Setup mock response
         mock_response = [
@@ -345,6 +388,38 @@ class TestPipelineCommands:
 
 
 class TestTaskCommands:
+    def test_get_task_usage(self, runner, mock_client):
+        mock_client.return_value = (
+            [
+                models.PodContainerMetrics(
+                    namespace_name="test-org",
+                    pod_name="task-pod",
+                    container_name="main",
+                )
+            ],
+            None,
+        )
+
+        with patch("oceanum.cli.models.TokenResponse.load", return_value=token):
+            result = runner.invoke(
+                main,
+                [
+                    "prax",
+                    "usage",
+                    "task",
+                    "run-123",
+                    "--time",
+                    "2023-01-01T11:00:00Z",
+                ],
+            )
+            assert result.exit_code == 0
+            mock_client.assert_called_with(
+                "GET",
+                "task-runs/run-123/usage",
+                params={"time": "2023-01-01T11:00:00Z"},
+                schema=models.PodContainerMetrics,
+            )
+
     def test_list_tasks_success(self, runner, mock_client, mock_response):
         mock_response = [
             models.TaskSchema(
@@ -500,6 +575,28 @@ class TestTaskCommands:
 
 
 class TestBuildCommands:
+    def test_get_build_usage(self, runner, mock_client):
+        mock_client.return_value = (
+            [
+                models.PodContainerMetrics(
+                    namespace_name="test-org",
+                    pod_name="build-pod",
+                    container_name="main",
+                )
+            ],
+            None,
+        )
+
+        with patch("oceanum.cli.models.TokenResponse.load", return_value=token):
+            result = runner.invoke(main, ["prax", "usage", "build", "run-123"])
+            assert result.exit_code == 0
+            mock_client.assert_called_with(
+                "GET",
+                "build-runs/run-123/usage",
+                params=None,
+                schema=models.PodContainerMetrics,
+            )
+
     def test_list_builds_success(self, runner, mock_client, mock_response):
         mock_response = [
             models.BuildSchema(
