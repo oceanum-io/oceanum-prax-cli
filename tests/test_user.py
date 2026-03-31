@@ -38,9 +38,14 @@ class TestUser(TestCase):
                 "data_points": 2,
             },
         }
-        with patch.object(
-            client.PRAXClient, "get_org_usage", return_value=response.json.return_value
-        ) as mock_get_org_usage:
+        with (
+            patch.object(
+                client.PRAXClient,
+                "get_org_usage",
+                return_value=response.json.return_value,
+            ) as mock_get_org_usage,
+            patch("oceanum.cli.prax.user.plt.build", return_value="PLOT"),
+        ):
             result = runner.invoke(
                 main,
                 [
@@ -62,15 +67,15 @@ class TestUser(TestCase):
             assert "Usage" in result.output
             assert "Coverage:" in result.output
             assert "Resolution: 5m  Samples: 2" in result.output
-            assert "2023-01-01 10:00 UTC -> 2023-01-01 12:00 UTC" in result.output
+            assert "PLOT" in result.output
             assert "Summary" in result.output
             assert "Billing Totals" in result.output
-            assert "Cpu Limits" in result.output
             assert "avg 1.75 cores" in result.output
             assert "peak 2.00 cores" in result.output
             assert "0.03 core-hours" in result.output
             assert "0.00 GiB-hours" in result.output
             assert "current 2.00 cores" in result.output
+            assert "2 cols at native 5m resolution" in result.output
             mock_get_org_usage.assert_called_with(
                 "test-org",
                 project_name="test-project",

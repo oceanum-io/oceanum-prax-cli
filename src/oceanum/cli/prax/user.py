@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 
 import click
+import plotext as plt
 import yaml
 
 from oceanum.cli.auth import login_required
@@ -62,6 +63,13 @@ def _format_range_label(value: str | None) -> str:
     return dt.strftime("%Y-%m-%d %H:%M %Z").strip()
 
 
+def _format_axis_label(value: str | None, compact: bool = False) -> str:
+    dt = _parse_timestamp(value)
+    if dt is None:
+        return value or "-"
+    return dt.strftime("%Y-%m-%d" if compact else "%Y-%m-%d %H:%M")
+
+
 def _resample_series(values: list[float], width: int) -> list[float]:
     if len(values) <= width:
         return values
@@ -75,44 +83,99 @@ def _resample_series(values: list[float], width: int) -> list[float]:
     return buckets
 
 
-def _render_sparkline(values: list[float]) -> str:
-    blocks = "▁▂▃▄▅▆▇█"
-    if not values:
-        return ""
-    min_value = min(values)
-    max_value = max(values)
-    if max_value == min_value:
-        return ("▇" if max_value > 0 else "▁") * len(values)
-    return "".join(
-        blocks[
-            round(((value - min_value) / (max_value - min_value)) * (len(blocks) - 1))
-        ]
-        for value in values
+def _plot_series_value(metric_name: str, value: float) -> float:
+    if metric_name.startswith("cpu_"):
+        return value
+    if "memory" in metric_name or "storage" in metric_name:
+        return value / (1024**3)
+    if metric_name.startswith("gpu_"):
+        return value
+    return value
+
+
+def _plot_series_unit(metric_name: str) -> str:
+    if metric_name.startswith("cpu_"):
+        return "cores"
+    if "memory" in metric_name or "storage" in metric_name:
+        return "GiB"
+    if metric_name.startswith("gpu_"):
+        return "gpus"
+    return "units"
+
+
+def _select_plot_metrics(time_series: dict) -> list[str]:
+    preferred = [
+        "cpu_limits",
+        "memory_limits",
+        "ephemeral_storage_limits",
+        "persistent_storage_limits",
+        "gpu_limits",
+    ]
+    selected = []
+    for metric_name in preferred:
+        samples = time_series.get(metric_name, [])
+        if samples and any(float(sample["value"]) > 0 for sample in samples):
+            selected.append(metric_name)
+    return selected[:3]
+
+
+def _should_hide_metric(metric_name: str, values: list[float]) -> bool:
+    if metric_name != "ephemeral_storage_limits":
+        return False
+    average_gib = sum(_plot_series_value(metric_name, value) for value in values) / len(
+        values
     )
+    return average_gib < 0.1
 
 
-def _render_usage_plot(metric_name: str, samples: list[dict]) -> str | None:
+def _render_usage_plot_block(
+    metric_name: str, samples: list[dict], step: str | None = None
+) -> str | None:
     if not samples:
         return None
 
     values = [float(sample["value"]) for sample in samples]
     if not any(value > 0 for value in values):
         return None
+    if _should_hide_metric(metric_name, values):
+        return None
 
-    sampled_values = _resample_series(values, width=48)
-    sparkline = _render_sparkline(sampled_values)
+    sampled_values = _resample_series(values, width=96)
+    x_values = list(range(len(sampled_values)))
+    plotted_values = [
+        _plot_series_value(metric_name, value) for value in sampled_values
+    ]
     current = _format_latest_series_value(metric_name, values[-1])
     average = _format_latest_series_value(metric_name, sum(values) / len(values))
     peak = _format_latest_series_value(metric_name, max(values))
     start_label = _format_range_label(samples[0].get("timestamp"))
     end_label = _format_range_label(samples[-1].get("timestamp"))
+    compact_axis = len(values) > 96
+    axis_start = _format_axis_label(samples[0].get("timestamp"), compact=compact_axis)
+    axis_end = _format_axis_label(samples[-1].get("timestamp"), compact=compact_axis)
+    resolution_note = (
+        f"{len(sampled_values)} cols from {len(values)} {step or ''} samples".strip()
+        if len(sampled_values) != len(values)
+        else f"{len(values)} cols at native {step or ''} resolution".strip()
+    )
+
+    plt.clear_figure()
+    plt.plotsize(100, 12)
+    plt.theme("pro")
+    plt.plot(x_values, plotted_values, marker="dot")
+    plt.title(_format_usage_metric_name(metric_name))
+    plt.ylabel(_plot_series_unit(metric_name))
+    plt.xticks([0, len(x_values) - 1], [axis_start, axis_end])
+    plt.xfrequency(2)
+    plt.yfrequency(5)
+    plot = plt.build()
+    plt.clear_figure()
 
     return os.linesep.join(
         [
-            _format_usage_metric_name(metric_name),
-            f"  current {current}  avg {average}  peak {peak}",
-            f"  {sparkline}",
-            f"  {start_label} -> {end_label}",
+            f"current {current}  avg {average}  peak {peak}",
+            plot,
+            f"{resolution_note}",
         ]
     )
 
@@ -178,8 +241,10 @@ def render_org_usage_summary(usage_data: dict) -> str:
 
     if time_series:
         plot_sections = []
-        for metric_name, samples in time_series.items():
-            plot_section = _render_usage_plot(metric_name, samples)
+        for metric_name in _select_plot_metrics(time_series):
+            plot_section = _render_usage_plot_block(
+                metric_name, time_series[metric_name], metadata.get("step")
+            )
             if plot_section:
                 plot_sections.append(plot_section)
 
@@ -193,7 +258,7 @@ def render_org_usage_summary(usage_data: dict) -> str:
             f"Resolution: {metadata.get('step', '-')}  Samples: {metadata.get('data_points', '-')}"
         )
         if plot_sections:
-            sections.extend(["", *plot_sections])
+            sections.extend(["", (os.linesep * 2).join(plot_sections)])
         else:
             sections.extend(
                 ["", "No non-zero usage series found in the selected window."]

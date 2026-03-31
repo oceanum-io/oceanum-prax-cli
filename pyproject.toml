@@ -36,6 +36,7 @@ dependencies = [
   "requests",
   "tabulate",
   "humanize",
+  "plotext",
   "oceanum>=1.0.11"
 ]
 dynamic = ["version"]
