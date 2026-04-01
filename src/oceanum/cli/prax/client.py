@@ -182,7 +182,7 @@ class PRAXClient:
                     [s.status in ["updating", "degraded"] for s in project.stages]
                 )
                 ready_stages = all(
-                    [s.status in ["ready", "error"] for s in project.stages]
+                    [s.status in ["healthy", "error"] for s in project.stages]
                 )
                 if updating:
                     break
@@ -233,11 +233,21 @@ class PRAXClient:
             click.echo(f" {spin} Waiting for build-run status...")
             time.sleep(10)
             to_finish_msg = False
+            consecutive_failures = 0
+            max_failures = 30
             while True:
                 time.sleep(self._lag)
                 project_builds = get_builds(project)
                 if not project_builds:
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_failures:
+                        click.echo("")
+                        click.echo(
+                            f" {err} Failed to get build status after {max_failures} attempts, exiting..."
+                        )
+                        return False
                     continue
+                consecutive_failures = 0
 
                 finished_builds = [
                     b
