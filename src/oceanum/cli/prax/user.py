@@ -148,8 +148,6 @@ def _render_usage_plot_block(
     current = _format_latest_series_value(metric_name, values[-1])
     average = _format_latest_series_value(metric_name, sum(values) / len(values))
     peak = _format_latest_series_value(metric_name, max(values))
-    start_label = _format_range_label(samples[0].get("timestamp"))
-    end_label = _format_range_label(samples[-1].get("timestamp"))
     compact_axis = len(values) > 96
     axis_start = _format_axis_label(samples[0].get("timestamp"), compact=compact_axis)
     axis_end = _format_axis_label(samples[-1].get("timestamp"), compact=compact_axis)
@@ -458,7 +456,12 @@ def describe_user(ctx: click.Context, org: str | None):
 
 @usage.command(name="org", help="Inspect aggregated PRAX Organization usage")
 @click.pass_context
-@click.argument("org", type=str)
+@click.option(
+    "--org",
+    help="Organization name. Defaults to your current Org.",
+    default=None,
+    type=str,
+)
 @click.option(
     "--project-name",
     default=None,
@@ -493,11 +496,29 @@ def describe_user(ctx: click.Context, org: str | None):
 @login_required
 def get_org_usage(
     ctx: click.Context,
-    org: str,
+    org: str | None,
     output: str,
     **filters,
 ):
     client = PRAXClient(ctx)
+
+    if org is None:
+        users = client.get_users()
+        if isinstance(users, models.ErrorResponse):
+            click.echo(f" {err} Error fetching user information:")
+            echoerr(users)
+            return 1
+        if not users:
+            click.echo(f" {err} No user information found.")
+            return 1
+        user = users[0]
+        if not user.current_org:
+            click.echo(
+                f" {err} No organization specified and user '{user.username}' has no current Org."
+            )
+            return 1
+        org = user.current_org.name
+
     usage_data = client.get_org_usage(
         org, **{k: v for k, v in filters.items() if v is not None}
     )

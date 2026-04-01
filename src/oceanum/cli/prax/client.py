@@ -552,9 +552,8 @@ class PRAXClient:
     def get_org_usage(
         self, org: str, **filters
     ) -> dict[str, Any] | models.ErrorResponse:
-        response, errs = self._request(
-            "GET", f"orgs/{org}/usage", params=filters or None, schema=None
-        )
+        params = {"org": org, **(filters or {})}
+        response, errs = self._request("GET", "usage", params=params, schema=None)
         get_org_usage_err = models.ErrorResponse(
             detail=f"Failed to get organization usage for '{org}'!"
         )
