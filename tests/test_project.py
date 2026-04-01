@@ -664,3 +664,148 @@ class TestListSources(TestCase):
             result = runner.invoke(oceanum_main, ["prax", "list", "sources"])
             assert result.exit_code == 1
             assert "Not authenticated" in result.output
+
+
+class TestDeployUXImprovements(TestCase):
+    def setUp(self) -> None:
+        self.specfile = str(Path(__file__).parent / "data/dpm-project.yaml")
+        return super().setUp()
+
+    def test_wait_commit_shows_elapsed_time(self):
+        """Test that the waiting message includes elapsed time"""
+        with patch("oceanum.cli.prax.client.PRAXClient.get_project") as mock_get:
+            call_count = [0]
+
+            def get_project_side_effect(**params):
+                call_count[0] += 1
+                if call_count[0] < 3:
+                    return project_schema.model_copy(
+                        deep=True,
+                        update={
+                            "last_revision": project_schema.last_revision.model_copy(
+                                update={"status": "created"}
+                            )
+                        },
+                    )
+                return project_schema.model_copy(
+                    deep=True,
+                    update={
+                        "last_revision": project_schema.last_revision.model_copy(
+                            update={"status": "commited"}
+                        )
+                    },
+                )
+
+            mock_get.side_effect = get_project_side_effect
+
+            cli_client = client.PRAXClient.__new__(client.PRAXClient)
+            cli_client._lag = 0.1
+
+            with patch(
+                "oceanum.cli.prax.client.PRAXClient.get_project",
+                side_effect=get_project_side_effect,
+            ):
+                result = cli_client._wait_project_commit(
+                    project_name="test-project", org="test-org", user="test@test.com"
+                )
+                assert result is True
+
+    def test_wait_commit_shows_error_details_on_failure(self):
+        """Test that error details are shown when revision fails"""
+        failed_schema = project_schema.model_copy(
+            deep=True,
+            update={
+                "last_revision": project_schema.last_revision.model_copy(
+                    update={"status": "failed"}
+                ),
+                "stages": [
+                    models.StageDetailsSchema(
+                        id="test-stage",
+                        name="test-stage",
+                        status="error",
+                        error_message="Build failed: image not found",
+                        updated_at=datetime.now().replace(tzinfo=timezone.utc),
+                        resources=models.StageResourcesSchema(
+                            name="test-stage",
+                            pipelines=[],
+                            tasks=[],
+                            builds=[],
+                            routes=[],
+                            sources=[],
+                        ),
+                    )
+                ],
+            },
+        )
+
+        cli_client = client.PRAXClient.__new__(client.PRAXClient)
+        cli_client._lag = 0.1
+
+        with patch.object(cli_client, "get_project", return_value=failed_schema):
+            result = cli_client._wait_project_commit(
+                project_name="test-project", org="test-org", user="test@test.com"
+            )
+            assert result is False
+
+    def test_wait_commit_shows_no_change_warning(self):
+        """Test that no-change status is handled correctly"""
+        no_change_schema = project_schema.model_copy(
+            deep=True,
+            update={
+                "last_revision": project_schema.last_revision.model_copy(
+                    update={"status": "no-change"}
+                )
+            },
+        )
+
+        cli_client = client.PRAXClient.__new__(client.PRAXClient)
+        cli_client._lag = 0.1
+
+        with patch.object(cli_client, "get_project", return_value=no_change_schema):
+            result = cli_client._wait_project_commit(
+                project_name="test-project", org="test-org", user="test@test.com"
+            )
+            assert result is False
+
+    def test_show_revision_error_details_with_stage_error(self):
+        """Test _show_revision_error_details displays stage error messages"""
+        error_schema = project_schema.model_copy(
+            deep=True,
+            update={
+                "stages": [
+                    models.StageDetailsSchema(
+                        id="test-stage",
+                        name="test-stage",
+                        status="error",
+                        error_message="Container failed to start",
+                        updated_at=datetime.now().replace(tzinfo=timezone.utc),
+                        resources=models.StageResourcesSchema(
+                            name="test-stage",
+                            pipelines=[],
+                            tasks=[],
+                            builds=[],
+                            routes=[],
+                            sources=[],
+                        ),
+                    )
+                ],
+            },
+        )
+
+        cli_client = client.PRAXClient.__new__(client.PRAXClient)
+        cli_client._lag = 0.1
+
+        with patch.object(cli_client, "get_project", return_value=error_schema):
+            cli_client._show_revision_error_details(
+                project_name="test-project", org="test-org", user="test@test.com"
+            )
+
+    def test_show_revision_error_details_with_no_details(self):
+        """Test _show_revision_error_details when no error details available"""
+        cli_client = client.PRAXClient.__new__(client.PRAXClient)
+        cli_client._lag = 0.1
+
+        with patch.object(cli_client, "get_project", return_value=project_schema):
+            cli_client._show_revision_error_details(
+                project_name="test-project", org="test-org", user="test@test.com"
+            )

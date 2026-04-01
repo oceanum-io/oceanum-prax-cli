@@ -129,6 +129,9 @@ class PRAXClient:
         return obj if obj is not None else response, errs
 
     def _wait_project_commit(self, **params) -> bool:
+        start_time = time.time()
+        spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
+        spin_idx = 0
         while True:
             project = self.get_project(**params)
             if (
@@ -137,30 +140,41 @@ class PRAXClient:
             ):
                 if project.last_revision.status == "created":
                     time.sleep(self._lag)
+                    elapsed = timedelta(seconds=int(time.time() - start_time))
+                    spin_char = spinner[spin_idx % len(spinner)]
+                    spin_idx += 1
                     click.echo(
-                        f" {spin} Waiting for Revision #{project.last_revision.number} to be committed..."
+                        f"\r {spin_char} Waiting for Revision #{project.last_revision.number} to be committed... ({elapsed})",
+                        nl=False,
                     )
                     continue
                 elif project.last_revision.status == "no-change":
+                    click.echo("")
                     click.echo(f" {wrn} No changes to commit, exiting...")
                     return False
                 elif project.last_revision.status == "failed":
+                    click.echo("")
                     click.echo(
-                        f" {err} Revision #{project.last_revision.number} failed to commit, exiting..."
+                        f" {err} Revision #{project.last_revision.number} failed to commit"
                     )
+                    self._show_revision_error_details(**params)
                     return False
                 elif project.last_revision.status == "commited":
+                    click.echo("")
                     click.echo(
                         f" {chk} Revision #{project.last_revision.number} committed successfully"
                     )
                     return True
             else:
+                click.echo("")
                 click.echo(f" {err} No project revision found, exiting...")
-                break
-        return True
+                return False
 
     def _wait_stages_start_updating(self, **params):
         counter = 0
+        start_time = time.time()
+        spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
+        spin_idx = 0
         while True:
             project = self.get_project(**params)
             if isinstance(project, models.ProjectDetailsSchema):
@@ -173,15 +187,22 @@ class PRAXClient:
                 if updating:
                     break
                 elif counter > 5 and ready_stages:
-                    # click.echo(f"Project '{project.name}' finished being updated in {time.time()-start:.2f}s")
                     break
                 else:
-                    click.echo(f" {spin} Waiting for project to start updating...")
                     time.sleep(self._lag)
+                    elapsed = timedelta(seconds=int(time.time() - start_time))
+                    spin_char = spinner[spin_idx % len(spinner)]
+                    spin_idx += 1
+                    click.echo(
+                        f"\r {spin_char} Waiting for project to start updating... ({elapsed})",
+                        nl=False,
+                    )
                     counter += 1
             else:
+                click.echo("")
                 click.echo(f" {err} Failed to get project details!")
                 break
+        click.echo("")
         return project
 
     def _wait_builds_to_finish(self, **params):
@@ -206,6 +227,9 @@ class PRAXClient:
             if not builds:
                 return True
 
+            start_time = time.time()
+            spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
+            spin_idx = 0
             click.echo(f" {spin} Waiting for build-run status...")
             time.sleep(10)
             to_finish_msg = False
@@ -248,10 +272,15 @@ class PRAXClient:
                     break
                 elif running_builds:
                     if not to_finish_msg:
-                        click.echo(
-                            f" {spin} Waiting for builds to finish, this can take several minutes..."
-                        )
+                        click.echo("")
                         to_finish_msg = True
+                    elapsed = timedelta(seconds=int(time.time() - start_time))
+                    spin_char = spinner[spin_idx % len(spinner)]
+                    spin_idx += 1
+                    click.echo(
+                        f"\r {spin_char} Waiting for builds to finish, this can take several minutes... ({elapsed})",
+                        nl=False,
+                    )
                     continue
         else:
             click.echo(f" {err} Failed to get project details!")
@@ -260,7 +289,9 @@ class PRAXClient:
 
     def _wait_stages_finish_updating(self, **params):
         counter = 0
-        click.echo(f" {spin} Waiting for all stages to finish updating...")
+        start_time = time.time()
+        spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
+        spin_idx = 0
         while True:
             counter += 1
             project = self.get_project(**params)
@@ -269,6 +300,7 @@ class PRAXClient:
                 stages = project.stages or []
                 all_finished = all([s.status in ["healthy", "error"] for s in stages])
                 if all_finished:
+                    click.echo("")
                     click.echo(
                         f" {chk} Project '{project_name}' finished being updated!"
                     )
@@ -284,6 +316,7 @@ class PRAXClient:
                                     "root",
                                     route.next_revision_status,
                                 ) in ["error"]:
+                                    click.echo("")
                                     click.echo(
                                         f" {err} Route '{route.name}' at revision #{project.last_revision.number} failed to start!"
                                     )
@@ -298,6 +331,54 @@ class PRAXClient:
                         break
                 else:
                     time.sleep(self._lag)
+                    elapsed = timedelta(seconds=int(time.time() - start_time))
+                    spin_char = spinner[spin_idx % len(spinner)]
+                    spin_idx += 1
+                    click.echo(
+                        f"\r {spin_char} Waiting for all stages to finish updating... ({elapsed})",
+                        nl=False,
+                    )
+
+    def _show_revision_error_details(self, **params):
+        project = self.get_project(**params)
+        if not isinstance(project, models.ProjectDetailsSchema):
+            return
+
+        stages = project.stages or []
+        has_details = False
+
+        for stage in stages:
+            if stage.error_message:
+                if not has_details:
+                    click.echo(f" {wrn} Error details:")
+                has_details = True
+                click.echo(f"   Stage '{stage.name}': {stage.error_message}")
+
+            if stage.resources:
+                for route in stage.resources.routes:
+                    if getattr(
+                        route.next_revision_status,
+                        "root",
+                        route.next_revision_status,
+                    ) in ["error"]:
+                        if not has_details:
+                            click.echo(f" {wrn} Error details:")
+                        has_details = True
+                        click.echo(f"   Route '{route.name}' failed to start!")
+                        msg = (route.details or {}).get(
+                            "message", "No error message provided"
+                        )
+                        click.echo(f"   {os.linesep}{msg}")
+
+                for build in stage.resources.builds:
+                    if build.last_run and build.last_run.status in ["Failed", "Error"]:
+                        if not has_details:
+                            click.echo(f" {wrn} Error details:")
+                        has_details = True
+                        click.echo(f"   Build '{build.name}-{build.stage}' failed!")
+                        click.echo(
+                            f"   Inspect with: oceanum prax logs build {build.name} --project {project.name} --org {project.org} --stage {build.stage}"
+                        )
 
     def _check_routes(self, **params):
         project = self.get_project(**params)
