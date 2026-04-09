@@ -66,6 +66,11 @@ def logs():
     pass
 
 
+@prax.group(name="usage", help="Inspect resource usage metrics")
+def usage():
+    pass
+
+
 @prax.group(name="download", help="Download artifacts")
 def download():
     pass

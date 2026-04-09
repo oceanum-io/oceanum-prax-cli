@@ -1,5 +1,5 @@
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
@@ -10,6 +10,98 @@ runner = CliRunner()
 
 
 class TestUser(TestCase):
+    def test_get_org_usage(self):
+        response = MagicMock(status_code=200)
+        response.ok = True
+        response.json.return_value = {
+            "time_series": {
+                "cpu_limits": [
+                    {"timestamp": "2023-01-01T10:00:00Z", "value": 1.5},
+                    {"timestamp": "2023-01-01T10:05:00Z", "value": 2.0},
+                ],
+                "memory_limits": [],
+            },
+            "billing_totals": {
+                "cpu": 123,
+                "memory": 456,
+                "ephemeral_storage": 0,
+                "persistent_storage": 0,
+                "gpu": 0,
+            },
+            "metadata": {
+                "org": "test-org",
+                "project_name": "test-project",
+                "start_time": "2023-01-01T10:00:00Z",
+                "end_time": "2023-01-01T12:00:00Z",
+                "step": "5m",
+                "duration_seconds": 7200,
+                "data_points": 2,
+            },
+        }
+        with (
+            patch.object(
+                client.PRAXClient,
+                "get_org_usage",
+                return_value=response.json.return_value,
+            ) as mock_get_org_usage,
+            patch("oceanum.cli.prax.user.plt.build", return_value="PLOT"),
+        ):
+            result = runner.invoke(
+                main,
+                [
+                    "prax",
+                    "usage",
+                    "org",
+                    "test-org",
+                    "--project-name",
+                    "test-project",
+                    "--start",
+                    "2023-01-01T10:00:00Z",
+                    "--end",
+                    "2023-01-01T12:00:00Z",
+                    "--step",
+                    "5m",
+                ],
+            )
+            assert result.exit_code == 0
+            assert "Usage" in result.output
+            assert "Coverage:" in result.output
+            assert "Resolution: 5m  Samples: 2" in result.output
+            assert "PLOT" in result.output
+            assert "Summary" in result.output
+            assert "Billing Totals" in result.output
+            assert "avg 1.75 cores" in result.output
+            assert "peak 2.00 cores" in result.output
+            assert "0.03 core-hours" in result.output
+            assert "0.00 GiB-hours" in result.output
+            assert "current 2.00 cores" in result.output
+            assert "2 cols at native 5m resolution" in result.output
+            mock_get_org_usage.assert_called_with(
+                "test-org",
+                project_name="test-project",
+                start="2023-01-01T10:00:00Z",
+                end="2023-01-01T12:00:00Z",
+                step="5m",
+            )
+
+    def test_get_org_usage_yaml_output(self):
+        response = MagicMock(status_code=200)
+        response.ok = True
+        response.json.return_value = {
+            "time_series": {"cpu_limits": []},
+            "billing_totals": {"cpu": 123},
+            "metadata": {"org": "test-org", "project_name": None, "step": "1h"},
+        }
+        with patch.object(
+            client.PRAXClient, "get_org_usage", return_value=response.json.return_value
+        ):
+            result = runner.invoke(
+                main,
+                ["prax", "usage", "org", "test-org", "--output", "yaml"],
+            )
+            assert result.exit_code == 0
+            assert "billing_totals:" in result.output
+
     def test_create_user_secret_help(self):
         result = runner.invoke(main, ["prax", "create", "user-secret", "--help"])
         assert result.exit_code == 0
