@@ -5,12 +5,12 @@
 
 ### Project
 
-- [x] deploy [file] -f specfile -p [project_name] --org [org_name] --user [email] 
+- [x] deploy [file] -f specfile -p [project_name] --org [org_name] --user [email]
 - [x] validate [file]
-- [x] list projects --search [search] 
+- [x] list projects --search [search]
 - [x] delete project [project_name] --org [org_name]
-- [x] describe project [project_name] 
-- [x] allow project [project_name] 
+- [x] describe project [project_name]
+- [x] allow project [project_name]
 - [ ] inspect project [project_name]  (opens ArgoCD UI)
 
 # Route Commands
@@ -33,13 +33,13 @@
 - [ ] list user-secrets
 - [ ] create user-secret [secret_name] --key1=value --key2=value
 - [ ] update user-secret [secret_name] --key1=value --key2=value
-- [ ] delete user-secret [secret_name] 
+- [ ] delete user-secret [secret_name]
 
 #### Build Commands
 
 - [x] list builds
 - [x] describe build [build_name]
-- [x] submit build 
+- [x] submit build
 - [x] terminate build [build_name]
 - [x] retry build [build_name]
 
@@ -58,4 +58,3 @@
 - [x] submit task
 - [x] terminate task [task_name]
 - [x] retry task [task_name]
-

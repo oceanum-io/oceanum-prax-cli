@@ -22,4 +22,3 @@ Update with pip:
 .. code-block:: console
 
     $ pip install --upgrade oceanum-prax
-

@@ -8,8 +8,8 @@ The Oceanum PRAX platform is a Cloud-based service for building and deploying fr
 A PRAX Project can be defined using a single YAML file that describes the project structure, secrets, tasks, pipelines, apps and other resouces.
 
 .. note::
-    Oceanum PRAX platform is a Beta feature and it's available by invitation only. 
-    
+    Oceanum PRAX platform is a Beta feature and it's available by invitation only.
+
     Please contact us for more information at support@oceanum.io!
 
 Documentation
@@ -37,4 +37,3 @@ Documentation
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-

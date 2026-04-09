@@ -1,8 +1,8 @@
 import sys
 import time
-import yaml
 
 import click
+import yaml
 
 from oceanum.cli.auth import login_required
 from oceanum.cli.renderer import Renderer, RenderField, output_format_option

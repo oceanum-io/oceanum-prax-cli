@@ -30,7 +30,7 @@ Next we can start to use the PRAX commands, for example:
 PRAX Projects
 -------------
 
-PRAX Projects consist of a set of Resources, such as Sources, Images, Builds, Tasks, Pipelines, Services and (deployment) Stages. One or more of these resources can be defined in a project specification file that can be used to deploy the resources to the Oceanum.io PRAX platform. 
+PRAX Projects consist of a set of Resources, such as Sources, Images, Builds, Tasks, Pipelines, Services and (deployment) Stages. One or more of these resources can be defined in a project specification file that can be used to deploy the resources to the Oceanum.io PRAX platform.
 
 For a project to be valid and deployable, it must have at least one Stage with at least one deployable Resource such as a Task, a Service or a Pipeline (a Pipeline requires at least one Task).
 
@@ -38,7 +38,7 @@ A single Task or a Service is the representation of a containerized application 
 
 The Docker Image for a Task or a Service can be defined from a public Docker Image repository, from a Private Docker Image repository or from a PRAX Build resource defined in the Project specification file.
 
-When defining a PRAX Build resource you have the option to provide directly a base-image and a build command or to connect the Build Resource to a Source-code repository and optionally provide a Dockerfile to be built or an installation script through the source-code. 
+When defining a PRAX Build resource you have the option to provide directly a base-image and a build command or to connect the Build Resource to a Source-code repository and optionally provide a Dockerfile to be built or an installation script through the source-code.
 
 When you connect a Source-code repository to a Build Resource, the Oceanum.io PRAX platform will attempt to establish an Webhook connection to the Source-code repository using the Github or Gitlab APIs. The Webhook connection will listen for changes in the Source-code repository and will trigger a new build of the Docker Image when a change is detected in the connected branch or tag.
 
@@ -69,7 +69,7 @@ Deploy an App
     name: my-project
     description: My project description
     resources:
-        
+
         # Connect a Git Source repository to the project
         sources:
         - name: app-source
@@ -102,7 +102,7 @@ Deploy an App
           image:
             buildRef: app-build
           command: python app.py
-        
+
         # Deploy the App to two deployment stages, one tracking main branch (test)
         # and the another (prod) tracking v*.*.* tags.
         stages:
@@ -118,8 +118,8 @@ Deploy an App
             tag: 'v\\d+\\.\\d+\\.\\d+'
           resources:
             services:
-            - name: my-app  
-        
+            - name: my-app
+
 Add the source repository Fine-Grained-Access-Token as a global User Resource so can be used in multiple projects:
 
 .. code-block:: console
